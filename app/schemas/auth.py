@@ -32,6 +32,20 @@ class CreateChefRequest(BaseModel):
     email: EmailStr
     contact_number: str
     password: str
+    role: Optional[str] = "CHEF"
+    shift: Optional[str] = "Morning"
+    assigned_station: Optional[str] = "Main Kitchen"
+
+
+class UpdateChefRequest(BaseModel):
+    name: str
+    email: EmailStr
+    contact_number: str
+    role: Optional[str] = "CHEF"
+    password: Optional[str] = None
+    shift: Optional[str] = None
+    assigned_station: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class ChangePasswordRequest(BaseModel):

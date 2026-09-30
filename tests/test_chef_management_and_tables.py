@@ -19,7 +19,7 @@ def test_admin_can_create_chef_account_and_chef_can_login():
         'name': 'Chef Sanjeev',
         'email': email,
         'contact_number': '+91 9876543299',
-        'password': 'chefpassword123',
+        'password': 'ChefPassword@123',
     }
     create_res = client.post('/api/v1/auth/chefs', json=payload, headers={'Authorization': f'Bearer {admin_token}'})
     # If already exists from previous run, that's fine or handle
@@ -36,7 +36,7 @@ def test_admin_can_create_chef_account_and_chef_can_login():
         assert 'password_hash' not in data
 
     # 2. Chef logs in
-    login_res = client.post('/api/v1/auth/login', json={'email': email, 'password': 'chefpassword123'})
+    login_res = client.post('/api/v1/auth/login', json={'email': email, 'password': 'ChefPassword@123'})
     assert login_res.status_code == 200
     chef_token = login_res.json()['access_token']
     assert login_res.json()['user']['role'] == 'CHEF'
@@ -46,16 +46,16 @@ def test_admin_can_create_chef_account_and_chef_can_login():
         '/api/v1/auth/change-password',
         headers={'Authorization': f'Bearer {chef_token}'},
         json={
-            'current_password': 'chefpassword123',
-            'new_password': 'newchefpassword123',
-            'confirm_new_password': 'newchefpassword123',
+            'current_password': 'ChefPassword@123',
+            'new_password': 'NewChefPassword@123',
+            'confirm_new_password': 'NewChefPassword@123',
         }
     )
     assert change_res.status_code == 200
     assert 'successfully' in change_res.json()['message'].lower()
 
     # 4. Chef logs in with new password
-    new_login_res = client.post('/api/v1/auth/login', json={'email': email, 'password': 'newchefpassword123'})
+    new_login_res = client.post('/api/v1/auth/login', json={'email': email, 'password': 'NewChefPassword@123'})
     assert new_login_res.status_code == 200
 
     # 5. Chef cannot access admin endpoints
@@ -139,3 +139,51 @@ def test_admin_delete_table():
     assert list_res.status_code == 200
     table_ids = [t['id'] for t in list_res.json()]
     assert table_id not in table_ids
+
+
+def test_admin_update_and_delete_chef():
+    admin_token = _get_admin_token()
+    import uuid
+    email = f'chef_crud_{uuid.uuid4().hex[:8]}@vaanvibes.com'
+
+    # Create chef
+    payload = {
+        'name': 'Chef Ranveer',
+        'email': email,
+        'contact_number': '9876543210',
+        'role': 'CHEF',
+        'password': 'ChefPassword@123',
+    }
+    create_res = client.post('/api/v1/auth/chefs', json=payload, headers={'Authorization': f'Bearer {admin_token}'})
+    assert create_res.status_code == 201
+    chef_data = create_res.json()
+    chef_id = chef_data['id']
+    assert chef_data['name'] == 'Chef Ranveer'
+
+    # Update chef
+    update_payload = {
+        'name': 'Chef Ranveer Brar',
+        'email': email,
+        'contact_number': '9123456789',
+        'role': 'CHEF',
+        'shift': 'Evening',
+        'assigned_station': 'Tandoor & Grill',
+        'is_active': True,
+    }
+    update_res = client.put(f'/api/v1/auth/chefs/{chef_id}', json=update_payload, headers={'Authorization': f'Bearer {admin_token}'})
+    assert update_res.status_code == 200
+    updated_data = update_res.json()
+    assert updated_data['name'] == 'Chef Ranveer Brar'
+    assert updated_data['contact_number'] == '9123456789'
+    assert updated_data['assigned_station'] == 'Tandoor & Grill'
+
+    # Delete chef
+    delete_res = client.delete(f'/api/v1/auth/chefs/{chef_id}', headers={'Authorization': f'Bearer {admin_token}'})
+    assert delete_res.status_code == 200
+    assert 'deleted successfully' in delete_res.json()['message']
+
+    # Verify not in list
+    list_res = client.get('/api/v1/auth/chefs', headers={'Authorization': f'Bearer {admin_token}'})
+    assert list_res.status_code == 200
+    ids = [c['id'] for c in list_res.json()]
+    assert chef_id not in ids

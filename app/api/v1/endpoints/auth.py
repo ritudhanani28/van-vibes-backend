@@ -1,3 +1,4 @@
+import re
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
     CreateChefRequest,
+    UpdateChefRequest,
     LoginRequest,
     TokenResponse,
     UserResponse,
@@ -59,13 +61,47 @@ def logout(current_user: User = Depends(get_current_user)):
     return {"message": "Logged out successfully", "user_id": current_user.id}
 
 
+def validate_password_strength(password: str) -> None:
+    """Validate password has min 6 chars, uppercase, lowercase, number, and special character."""
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long.",
+        )
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one uppercase letter (A-Z).",
+        )
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one lowercase letter (a-z).",
+        )
+    if not re.search(r"[0-9]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one number (0-9).",
+        )
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one special character (!@#$%^&*...).",
+        )
+
+
 @router.get("/chefs", response_model=List[UserResponse])
 def list_chefs(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """List all chef accounts (Admin only). Passwords are never returned."""
-    chefs = db.query(User).filter(User.role == "CHEF").order_by(User.created_at.desc()).all()
+    """List all chef accounts (Admin only). Strictly filters role == 'CHEF'."""
+    chefs = (
+        db.query(User)
+        .filter(User.role == "CHEF")
+        .order_by(User.created_at.desc())
+        .all()
+    )
     return [UserResponse.model_validate(c) for c in chefs]
 
 
@@ -76,8 +112,8 @@ def create_chef(
     admin: User = Depends(require_admin),
 ):
     """
-    Create a new chef account (Admin only).
-    The CHEF role is strictly assigned by the backend. Passwords are never returned.
+    Create a new chef / staff account (Admin only).
+    Validates required email, 10-digit contact number, role, and strong password (uppercase, lowercase, number, special char).
     """
     clean_email = payload.email.lower().strip()
     existing = db.query(User).filter(User.email == clean_email).first()
@@ -87,20 +123,27 @@ def create_chef(
             detail=f"User with email '{clean_email}' already exists.",
         )
 
-    if len(payload.password) < 6:
+    clean_digits = re.sub(r"\D", "", payload.contact_number)
+    if len(clean_digits) < 10 or len(clean_digits) > 15:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters long.",
+            detail="Contact number must contain at least 10 digits.",
         )
+
+    validate_password_strength(payload.password)
+
+    clean_role = payload.role.upper().strip() if payload.role else "CHEF"
+    if clean_role not in ["CHEF", "ADMIN"]:
+        clean_role = "CHEF"
 
     chef = User(
         email=clean_email,
         name=payload.name.strip(),
         contact_number=payload.contact_number.strip(),
         password_hash=hash_password(payload.password),
-        role="CHEF",  # Strictly assigned by backend
-        assigned_station="Main Kitchen",
-        shift="Active Duty",
+        role=clean_role,
+        assigned_station=payload.assigned_station.strip() if payload.assigned_station else "Main Kitchen",
+        shift=payload.shift.strip() if payload.shift else "Morning",
         is_active=True,
     )
     db.add(chef)
@@ -108,6 +151,103 @@ def create_chef(
     db.refresh(chef)
 
     return UserResponse.model_validate(chef)
+
+
+@router.put("/chefs/{chef_id}", response_model=UserResponse)
+def update_chef(
+    chef_id: str,
+    payload: UpdateChefRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Update chef account details (Admin only).
+    Supports updating name, email, contact number, role, active status, and optional password.
+    """
+    chef = db.query(User).filter(User.id == chef_id).first()
+    if not chef:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chef with id '{chef_id}' not found.",
+        )
+
+    clean_email = payload.email.lower().strip()
+    if clean_email != chef.email:
+        existing = db.query(User).filter(User.email == clean_email, User.id != chef_id).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User with email '{clean_email}' already exists.",
+            )
+
+    clean_digits = re.sub(r"\D", "", payload.contact_number)
+    if len(clean_digits) < 10 or len(clean_digits) > 15:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contact number must contain at least 10 digits.",
+        )
+
+    clean_role = payload.role.upper().strip() if payload.role else "CHEF"
+    if clean_role not in ["CHEF", "ADMIN"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be either CHEF or ADMIN.",
+        )
+
+    if payload.password and payload.password.strip():
+        validate_password_strength(payload.password.strip())
+        chef.password_hash = hash_password(payload.password.strip())
+
+    chef.name = payload.name.strip()
+    chef.email = clean_email
+    chef.contact_number = payload.contact_number.strip()
+    chef.role = clean_role
+    if payload.shift is not None:
+        chef.shift = payload.shift.strip()
+    if payload.assigned_station is not None:
+        chef.assigned_station = payload.assigned_station.strip()
+    if payload.is_active is not None:
+        chef.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(chef)
+    return UserResponse.model_validate(chef)
+
+
+@router.delete("/chefs/{chef_id}")
+def delete_chef(
+    chef_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Delete a chef account (Admin only).
+    Prevents deleting the active logged-in admin or default admin account.
+    """
+    if admin.id == chef_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own logged-in admin account.",
+        )
+
+    chef = db.query(User).filter(User.id == chef_id).first()
+    if not chef:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chef with id '{chef_id}' not found.",
+        )
+
+    if chef.email == "admin@vaanvibes.com":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Default administrator account cannot be deleted.",
+        )
+
+    chef_name = chef.name
+    db.delete(chef)
+    db.commit()
+
+    return {"message": f"Chef {chef_name} deleted successfully", "id": chef_id}
 
 
 @router.post("/change-password")
