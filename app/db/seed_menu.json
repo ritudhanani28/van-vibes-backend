@@ -1,0 +1,1401 @@
+{
+  "categories": [
+    {
+      "id": "all",
+      "name": "All Items",
+      "slug": "all",
+      "icon": "🍽️",
+      "page": 0
+    },
+    {
+      "id": "hot-coffee",
+      "name": "Hot Coffee",
+      "slug": "hot-coffee",
+      "icon": "☕",
+      "page": 2
+    },
+    {
+      "id": "iced-coffee",
+      "name": "Iced Coffee",
+      "slug": "iced-coffee",
+      "icon": "🧊",
+      "page": 2
+    },
+    {
+      "id": "non-coffee",
+      "name": "Non Coffee",
+      "slug": "non-coffee",
+      "icon": "🍹",
+      "page": 2
+    },
+    {
+      "id": "manual-brew",
+      "name": "Manual Brew",
+      "slug": "manual-brew",
+      "icon": "⚗️",
+      "page": 2
+    },
+    {
+      "id": "shake",
+      "name": "Shake",
+      "slug": "shake",
+      "icon": "🥤",
+      "page": 2
+    },
+    {
+      "id": "frappe",
+      "name": "Frappe",
+      "slug": "frappe",
+      "icon": "🍧",
+      "page": 2
+    },
+    {
+      "id": "toastie",
+      "name": "Toastie",
+      "slug": "toastie",
+      "icon": "🥪",
+      "page": 3
+    },
+    {
+      "id": "appetizers",
+      "name": "Appetizers",
+      "slug": "appetizers",
+      "icon": "🍟",
+      "page": 3
+    },
+    {
+      "id": "pasta",
+      "name": "Pasta",
+      "slug": "pasta",
+      "icon": "🍝",
+      "page": 3
+    },
+    {
+      "id": "pizza",
+      "name": "Pizza",
+      "slug": "pizza",
+      "icon": "🍕",
+      "page": 3
+    },
+    {
+      "id": "rice",
+      "name": "Rice",
+      "slug": "rice",
+      "icon": "🍚",
+      "page": 3
+    },
+    {
+      "id": "soup",
+      "name": "Soup",
+      "slug": "soup",
+      "icon": "🥣",
+      "page": 3
+    },
+    {
+      "id": "starters",
+      "name": "Starters",
+      "slug": "starters",
+      "icon": "🍢",
+      "page": 4
+    },
+    {
+      "id": "asian-indo",
+      "name": "Asian Indo",
+      "slug": "asian-indo",
+      "icon": "🥢",
+      "page": 4
+    },
+    {
+      "id": "sizzlers",
+      "name": "Sizzlers",
+      "slug": "sizzlers",
+      "icon": "♨️",
+      "page": 4
+    },
+    {
+      "id": "signature-punjabi",
+      "name": "Signature Punjabi",
+      "slug": "signature-punjabi",
+      "icon": "🍛",
+      "page": 4
+    },
+    {
+      "id": "bread",
+      "name": "Bread",
+      "slug": "bread",
+      "icon": "🫓",
+      "page": 4
+    },
+    {
+      "id": "extra",
+      "name": "Extra",
+      "slug": "extra",
+      "icon": "🥛",
+      "page": 4
+    },
+    {
+      "id": "dessert",
+      "name": "Dessert",
+      "slug": "dessert",
+      "icon": "🍰",
+      "page": 5
+    }
+  ],
+  "items": [
+    {
+      "id": "hc-01",
+      "name": "Espresso",
+      "category": "hot-coffee",
+      "price": 140,
+      "description": "Single origin bold concentrated shot with a dense golden crema.",
+      "isVeg": true,
+      "image": "/images/hot-cappuccino.jpg"
+    },
+    {
+      "id": "hc-02",
+      "name": "Americano",
+      "category": "hot-coffee",
+      "price": 150,
+      "description": "Fresh espresso diluted with purified hot water for a smooth, rich cup.",
+      "isVeg": true,
+      "image": "/images/iced-americano.jpg"
+    },
+    {
+      "id": "hc-03",
+      "name": "Cappuccino",
+      "category": "hot-coffee",
+      "price": 160,
+      "description": "Equal parts rich espresso, steamed creamy milk, and velvety micro-foam.",
+      "isVeg": true,
+      "popular": true,
+      "image": "/images/hot-cappuccino.jpg"
+    },
+    {
+      "id": "hc-04",
+      "name": "Cortado",
+      "category": "hot-coffee",
+      "price": 160,
+      "description": "Spanish style balanced brew: rich espresso cut with equal amount of silky warm milk.",
+      "isVeg": true
+    },
+    {
+      "id": "hc-05",
+      "name": "Mocha",
+      "category": "hot-coffee",
+      "price": 180,
+      "description": "Espresso infused with artisanal melted chocolate and steamed milk.",
+      "isVeg": true,
+      "image": "/images/chocolate-mocha.jpg"
+    },
+    {
+      "id": "ic-01",
+      "name": "Iced Espresso",
+      "category": "iced-coffee",
+      "price": 140,
+      "description": "Chilled double espresso served over crystal clear ice cubes.",
+      "isVeg": true
+    },
+    {
+      "id": "ic-02",
+      "name": "Iced Americano",
+      "category": "iced-coffee",
+      "price": 150,
+      "description": "Crisp cold water poured over freshly pulled espresso with ice.",
+      "isVeg": true,
+      "image": "/images/iced-americano.jpg"
+    },
+    {
+      "id": "ic-03",
+      "name": "Iced Latte / Iced Mocha",
+      "category": "iced-coffee",
+      "price": 220,
+      "description": "Smooth chilled espresso poured over cold milk and ice.",
+      "isVeg": true,
+      "popular": true,
+      "options": [
+        {
+          "name": "Preparation",
+          "choices": [
+            {
+              "name": "Iced Latte"
+            },
+            {
+              "name": "Iced Mocha"
+            }
+          ]
+        }
+      ],
+      "addOns": [
+        {
+          "name": "Caramel Flavor",
+          "price": 30
+        },
+        {
+          "name": "Hazelnut Flavor",
+          "price": 30
+        }
+      ],
+      "image": "/images/vaan-signature-iced.jpg"
+    },
+    {
+      "id": "ic-04",
+      "name": "Vietnamese",
+      "category": "iced-coffee",
+      "price": 200,
+      "description": "Slow-dripped dark roast coffee stirred into rich condensed milk over ice.",
+      "isVeg": true
+    },
+    {
+      "id": "ic-05",
+      "name": "Bom-Bon",
+      "category": "iced-coffee",
+      "price": 160,
+      "description": "Decadent layered Spanish espresso over sweetened condensed milk.",
+      "isVeg": true
+    },
+    {
+      "id": "ic-06",
+      "name": "Affogato",
+      "category": "iced-coffee",
+      "price": 220,
+      "description": "A scoop of creamy vanilla bean gelato drowned in a hot shot of espresso.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ic-07",
+      "name": "Espresso Tonic",
+      "category": "iced-coffee",
+      "price": 280,
+      "description": "Effervescent tonic water paired with chilled espresso float and citrus.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Orange Flavor",
+          "price": 30
+        },
+        {
+          "name": "Cranberry Flavor",
+          "price": 30
+        },
+        {
+          "name": "Ginger Ale",
+          "price": 30
+        },
+        {
+          "name": "Mix Berry",
+          "price": 30
+        }
+      ]
+    },
+    {
+      "id": "ic-08",
+      "name": "Espresso Redbull",
+      "category": "iced-coffee",
+      "price": 340,
+      "description": "Energy-packed fusion of iced Red Bull topped with a double espresso shot.",
+      "isVeg": true
+    },
+    {
+      "id": "ic-09",
+      "name": "Mazagran",
+      "category": "iced-coffee",
+      "price": 340,
+      "description": "Original iced coffee with freshly squeezed lemon juice, mint, and ice.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-01",
+      "name": "Classic Virgin Mojito's",
+      "category": "non-coffee",
+      "price": 220,
+      "description": "Muddled fresh mint leaves, lime wedges, simple syrup, and sparkling soda.",
+      "isVeg": true,
+      "popular": true,
+      "addOns": [
+        {
+          "name": "Passionfruit Flavor",
+          "price": 30
+        },
+        {
+          "name": "Kiwi Flavor",
+          "price": 30
+        },
+        {
+          "name": "Yuzu Flavor",
+          "price": 30
+        }
+      ]
+    },
+    {
+      "id": "nc-02",
+      "name": "Lemon Iced Tea",
+      "category": "non-coffee",
+      "price": 220,
+      "description": "House-brewed Ceylon tea infused with fresh lemon and crushed mint.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-03",
+      "name": "Peach Iced Tea",
+      "category": "non-coffee",
+      "price": 220,
+      "description": "Sun-ripened orchard peach infusion with crisp iced black tea.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-04",
+      "name": "Blue-Wave",
+      "category": "non-coffee",
+      "price": 240,
+      "description": "Tropical curaçao cooler with coconut water and sparkling lemon fizz.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-05",
+      "name": "Chilly-Chilled Mango",
+      "category": "non-coffee",
+      "price": 280,
+      "description": "Sweet Alphonso mango pulp blended with a subtle green chilli zing.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-06",
+      "name": "Sangria",
+      "category": "non-coffee",
+      "price": 280,
+      "description": "Non-alcoholic spiced red grape & berry medley with seasonal fruit cuts.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "nc-07",
+      "name": "Pina Colada",
+      "category": "non-coffee",
+      "price": 320,
+      "description": "Velvety coconut cream shaken with fresh pineapple juice and crushed ice.",
+      "isVeg": true
+    },
+    {
+      "id": "nc-08",
+      "name": "Miami Vice",
+      "category": "non-coffee",
+      "price": 340,
+      "description": "Artistic dual-layer blend of chilled strawberry daiquiri and pina colada.",
+      "isVeg": true
+    },
+    {
+      "id": "mb-01",
+      "name": "Classic Cold Brew",
+      "category": "manual-brew",
+      "price": 220,
+      "description": "Steeped for 18 hours in cold purified water for low acidity and sweet chocolate finish.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "mb-02",
+      "name": "Cold Brew Tonic",
+      "category": "manual-brew",
+      "price": 280,
+      "description": "Slow-steeped cold brew poured over sparkling tonic water and grapefruit.",
+      "isVeg": true
+    },
+    {
+      "id": "mb-03",
+      "name": "Cold Brew Lemonade",
+      "category": "manual-brew",
+      "price": 280,
+      "description": "Refreshing harmony of dark cold brew and freshly squeezed lemonade.",
+      "isVeg": true
+    },
+    {
+      "id": "mb-04",
+      "name": "V60 Pourover (Hot/Iced)",
+      "category": "manual-brew",
+      "price": 240,
+      "description": "Artisanal manual pour-over highlighting bright floral & fruity origin notes.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Serving Style",
+          "choices": [
+            {
+              "name": "Hot"
+            },
+            {
+              "name": "Iced"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mb-05",
+      "name": "Aeropress (Hot/Iced)",
+      "category": "manual-brew",
+      "price": 250,
+      "description": "Air-pressure immersion extraction yielding a rich, full-bodied aromatic cup.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Serving Style",
+          "choices": [
+            {
+              "name": "Hot"
+            },
+            {
+              "name": "Iced"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mb-06",
+      "name": "Frenchpress",
+      "category": "manual-brew",
+      "price": 250,
+      "description": "Coarsely ground specialty beans brewed in classic mesh plunger press.",
+      "isVeg": true
+    },
+    {
+      "id": "sh-01",
+      "name": "Biscoff Caramel Shake",
+      "category": "shake",
+      "price": 340,
+      "description": "Lotus Biscoff cookie spread blended with vanilla ice cream and caramel drizzle.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sh-02",
+      "name": "Nutella Brownie Shake",
+      "category": "shake",
+      "price": 340,
+      "description": "Fudge chocolate brownie blitzed with generous spoons of real Nutella.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sh-03",
+      "name": "Oreo Javachips Shake",
+      "category": "shake",
+      "price": 360,
+      "description": "Crunchy Oreo biscuits blended with dark chocolate chips and creamy milk.",
+      "isVeg": true
+    },
+    {
+      "id": "sh-04",
+      "name": "New-York Cheesecake Shake",
+      "category": "shake",
+      "price": 360,
+      "description": "Liquid dessert: baked NY cheesecake blended with strawberry glaze.",
+      "isVeg": true
+    },
+    {
+      "id": "sh-05",
+      "name": "Mango-Hazelnut Shake",
+      "category": "shake",
+      "price": 390,
+      "description": "Tropical Alphonso mango paired with roasted Turkish hazelnut cream.",
+      "isVeg": true
+    },
+    {
+      "id": "fr-01",
+      "name": "Classic Frappe",
+      "category": "frappe",
+      "price": 260,
+      "description": "Whipped iced blended coffee topped with whipped cream.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Chocolate Flavor",
+          "price": 30
+        },
+        {
+          "name": "Caramel Flavor",
+          "price": 30
+        },
+        {
+          "name": "Hazelnut Flavor",
+          "price": 30
+        },
+        {
+          "name": "Mango Flavor",
+          "price": 30
+        },
+        {
+          "name": "Mixed Berry Flavor",
+          "price": 30
+        }
+      ]
+    },
+    {
+      "id": "fr-02",
+      "name": "Javachips Frappe",
+      "category": "frappe",
+      "price": 280,
+      "description": "Rich coffee frappe with crunchy dark chocolate chips and cocoa drizzle.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "fr-03",
+      "name": "Pistachio Frappe",
+      "category": "frappe",
+      "price": 320,
+      "description": "Gourmet Sicilian pistachio butter frappe topped with chopped nuts.",
+      "isVeg": true
+    },
+    {
+      "id": "to-01",
+      "name": "Flamin Hot Toast",
+      "category": "toastie",
+      "price": 330,
+      "description": "Sourdough toast loaded with fiery melted cheddar, jalapeños, and crushed hot crisps.",
+      "isVeg": true
+    },
+    {
+      "id": "to-02",
+      "name": "Oman Chips Toast",
+      "category": "toastie",
+      "price": 350,
+      "description": "Iconic street style toast with cheese spread, spicy chilli chutney, and Oman chips crunch.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "to-03",
+      "name": "Avocado Toast",
+      "category": "toastie",
+      "price": 390,
+      "description": "Creamy smashed Hass avocado on toasted artisanal bread with seeds & cherry tomatoes.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "to-04",
+      "name": "Cheese Mushroom Toast",
+      "category": "toastie",
+      "price": 410,
+      "description": "Herb-sautéed wild button mushrooms smothered in melted mozzarella & parmesan.",
+      "isVeg": true
+    },
+    {
+      "id": "ap-01",
+      "name": "French Fries",
+      "category": "appetizers",
+      "price": 280,
+      "description": "Golden crispy potato fries seasoned with sea salt, served with garlic dip.",
+      "isVeg": true
+    },
+    {
+      "id": "ap-02",
+      "name": "Peri-Peri Fries",
+      "category": "appetizers",
+      "price": 300,
+      "description": "Crispy golden fries tossed in aromatic African peri-peri spice dust.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ap-03",
+      "name": "Stuff Garlic Bread",
+      "category": "appetizers",
+      "price": 330,
+      "description": "Oven-baked crusty baguette stuffed with garlic butter, sweet corn, and gooey cheese.",
+      "isVeg": true
+    },
+    {
+      "id": "ap-04",
+      "name": "Mexican Loaded Nachos",
+      "category": "appetizers",
+      "price": 350,
+      "description": "Crisp tortilla chips topped with warm cheese sauce, beans, salsa, and sour cream.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ap-05",
+      "name": "Ramyun Noodles",
+      "category": "appetizers",
+      "price": 290,
+      "description": "Spicy Korean style ramyun broth noodles tossed with spring onion and veggies.",
+      "isVeg": true
+    },
+    {
+      "id": "ap-06",
+      "name": "Cheese Corn Ball",
+      "category": "appetizers",
+      "price": 350,
+      "description": "Crispy fried panko spheres bursting with melted cheese and sweet American corn.",
+      "isVeg": true
+    },
+    {
+      "id": "ap-07",
+      "name": "Korean Cheese Candy",
+      "category": "appetizers",
+      "price": 370,
+      "description": "Sweet and savory Korean street-style pull-apart cheese logs with crunchy crumb.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "pa-01",
+      "name": "Arrabbiata",
+      "category": "pasta",
+      "price": 395,
+      "description": "Classic spicy San Marzano tomato sauce infused with garlic, chilli flakes, and basil.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            },
+            {
+              "name": "Maccheroni"
+            },
+            {
+              "name": "Spaghetti"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pa-02",
+      "name": "Alfredo",
+      "category": "pasta",
+      "price": 395,
+      "description": "Rich and velvety butter cream sauce with cracked black pepper and parmesan.",
+      "isVeg": true,
+      "popular": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            },
+            {
+              "name": "Maccheroni"
+            },
+            {
+              "name": "Spaghetti"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pa-03",
+      "name": "Marinara",
+      "category": "pasta",
+      "price": 415,
+      "description": "Herbaceous slow-cooked Italian plum tomato sauce with oregano and extra virgin olive oil.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            },
+            {
+              "name": "Maccheroni"
+            },
+            {
+              "name": "Spaghetti"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pa-04",
+      "name": "Aglio-E-Olio",
+      "category": "pasta",
+      "price": 495,
+      "description": "Traditional Neapolitan toss of golden fried garlic, chilli flakes, parsley, and olive oil.",
+      "isVeg": true,
+      "popular": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Spaghetti"
+            },
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            },
+            {
+              "name": "Maccheroni"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pa-05",
+      "name": "Green Pesto",
+      "category": "pasta",
+      "price": 495,
+      "description": "Fresh Genovese basil crushed with pine nuts, garlic, olive oil, and aged cheese.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            },
+            {
+              "name": "Maccheroni"
+            },
+            {
+              "name": "Spaghetti"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pa-06",
+      "name": "Mac & Cheese",
+      "category": "pasta",
+      "price": 515,
+      "description": "Decadent baked maccheroni immersed in a triple cheese mornay sauce with crispy top.",
+      "isVeg": true,
+      "popular": true,
+      "options": [
+        {
+          "name": "Choice of Pasta",
+          "choices": [
+            {
+              "name": "Maccheroni"
+            },
+            {
+              "name": "Penne"
+            },
+            {
+              "name": "Fussili"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pi-01",
+      "name": "Margherita Pizza",
+      "category": "pizza",
+      "price": 430,
+      "description": "Artisanal crust topped with aromatic tomato passata, fresh mozzarella, and sweet basil.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "pi-02",
+      "name": "Fresh Veggie Pizza",
+      "category": "pizza",
+      "price": 480,
+      "description": "Crisp bell peppers, red onions, mushrooms, black olives, and sweet corn on mozzarella.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "pi-03",
+      "name": "Tandoori Paneer Pizza",
+      "category": "pizza",
+      "price": 520,
+      "description": "Clay-oven roasted marinated paneer cubes with onion, capsicum, and makhani drizzle.",
+      "isVeg": true,
+      "popular": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "pi-04",
+      "name": "Tadka Paneer Pizza",
+      "category": "pizza",
+      "price": 550,
+      "description": "Indian fusion pizza topped with spicy tempered paneer, coriander, and garlic crunch.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "pi-05",
+      "name": "Mexicano Pizza",
+      "category": "pizza",
+      "price": 580,
+      "description": "Zesty Mexican pizza with spiced beans, pickled jalapeños, bell peppers, and chipotle mayo.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "pi-06",
+      "name": "King Volcano Pizza",
+      "category": "pizza",
+      "price": 620,
+      "description": "Signature specialty with a towering molten cheese center and gourmet chef toppings.",
+      "isVeg": true,
+      "popular": true,
+      "addOns": [
+        {
+          "name": "Extra Cheese Burst",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "id": "ri-01",
+      "name": "Mexican Rice",
+      "category": "rice",
+      "price": 360,
+      "description": "Fragrant long-grain rice sautéed with spiced tomato salsa, corn, and black beans.",
+      "isVeg": true
+    },
+    {
+      "id": "ri-02",
+      "name": "Burnt Garlic Rice w Cheese Gravy",
+      "category": "rice",
+      "price": 410,
+      "description": "Aromatic wok-tossed burnt garlic rice served with a rich, silky bubbling cheese sauce.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ri-03",
+      "name": "Burrito Bowl",
+      "category": "rice",
+      "price": 425,
+      "description": "Deconstructed fiesta bowl: cilantro lime rice, beans, fajita veggies, salsa, and guacamole.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ri-04",
+      "name": "Schezwan Fried Rice",
+      "category": "rice",
+      "price": 440,
+      "description": "Fiery wok-tossed basmati rice with crunchy seasonal vegetables and house schezwan sauce.",
+      "isVeg": true
+    },
+    {
+      "id": "ri-05",
+      "name": "Hyderabadi Biryani",
+      "category": "rice",
+      "price": 430,
+      "description": "Dum-cooked royal basmati layers with spiced marinated veggies, saffron, and fried onions.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "so-01",
+      "name": "Cream of Tomato Basil",
+      "category": "soup",
+      "price": 220,
+      "description": "Velvety roasted red tomato soup topped with fresh cream swirl and croutons.",
+      "isVeg": true
+    },
+    {
+      "id": "so-02",
+      "name": "Manchow Soup",
+      "category": "soup",
+      "price": 230,
+      "description": "Dark spicy and sour Indo-Chinese broth served with crispy fried noodles.",
+      "isVeg": true
+    },
+    {
+      "id": "so-03",
+      "name": "Mexican Chilli Bean",
+      "category": "soup",
+      "price": 250,
+      "description": "Hearty kidney bean soup spiced with roasted cumin, tomatoes, and tortilla crisp.",
+      "isVeg": true
+    },
+    {
+      "id": "so-04",
+      "name": "Almond Broccoli",
+      "category": "soup",
+      "price": 270,
+      "description": "Nourishing puree of tender broccoli florets garnished with toasted almond flakes.",
+      "isVeg": true
+    },
+    {
+      "id": "so-05",
+      "name": "Cream of Avocado",
+      "category": "soup",
+      "price": 290,
+      "description": "Sublime chilled or warm creamed avocado soup with hints of lime and cilantro.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "st-01",
+      "name": "Hara-Bhara Kabab",
+      "category": "starters",
+      "price": 310,
+      "description": "Pan-seared spinach, green peas, and potato patties seasoned with royal spices.",
+      "isVeg": true
+    },
+    {
+      "id": "st-02",
+      "name": "Veg. Seek Kabab",
+      "category": "starters",
+      "price": 350,
+      "description": "Minced vegetable skewers infused with herbs, grilled golden over hot charcoal.",
+      "isVeg": true
+    },
+    {
+      "id": "st-03",
+      "name": "Malai Tikka",
+      "category": "starters",
+      "price": 370,
+      "description": "Succulent paneer cubes marinated in rich cashew cream, cardamom, and yoghurt.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "st-04",
+      "name": "Afghani Paneer Tikka",
+      "category": "starters",
+      "price": 370,
+      "description": "Creamy marinated cottage cheese with black pepper, garlic, and mild spices.",
+      "isVeg": true
+    },
+    {
+      "id": "st-05",
+      "name": "Paneer Tikka Masala",
+      "category": "starters",
+      "price": 380,
+      "description": "Spicy tandoor-charred paneer chunks tossed with capsicum and spicy onion glaze.",
+      "isVeg": true
+    },
+    {
+      "id": "st-06",
+      "name": "BBQ Paneer Tikka",
+      "category": "starters",
+      "price": 380,
+      "description": "Smoky paneer cubes glazed with sweet-tangy barbecue reduction.",
+      "isVeg": true
+    },
+    {
+      "id": "st-07",
+      "name": "Aachari Paneer Tikka",
+      "category": "starters",
+      "price": 390,
+      "description": "Tangy pickled spice marinade infused into tender chargrilled paneer.",
+      "isVeg": true
+    },
+    {
+      "id": "st-08",
+      "name": "Pahadi Paneer Tikka",
+      "category": "starters",
+      "price": 400,
+      "description": "Fresh mountain herb marinade with coriander, mint, green chilli, and lemon.",
+      "isVeg": true
+    },
+    {
+      "id": "st-09",
+      "name": "Afghani Soya Chaap",
+      "category": "starters",
+      "price": 400,
+      "description": "Protein-rich soya chaap baked in tandoor with rich clotted cream and crushed spices.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ai-01",
+      "name": "Veg. Dry Manchurian",
+      "category": "asian-indo",
+      "price": 290,
+      "description": "Crispy cabbage & carrot dumplings tossed in wok with garlic, soy, and spring onion.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ai-02",
+      "name": "Veg. Haka Noodles",
+      "category": "asian-indo",
+      "price": 320,
+      "description": "Classic wok-tossed thin noodles with julienned vegetables and white pepper.",
+      "isVeg": true
+    },
+    {
+      "id": "ai-03",
+      "name": "Paneer Chilly Dry",
+      "category": "asian-indo",
+      "price": 360,
+      "description": "Crispy cottage cheese cubes tossed with capsicum, onions, and spicy green chillies.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ai-04",
+      "name": "Veg. Crispy",
+      "category": "asian-indo",
+      "price": 350,
+      "description": "Batter-fried mixed vegetables glazed in a tangy, sweet-spicy oriental reduction.",
+      "isVeg": true
+    },
+    {
+      "id": "ai-05",
+      "name": "Burn Garlic Noodles",
+      "category": "asian-indo",
+      "price": 370,
+      "description": "Fragrant noodles laced with deeply roasted golden garlic and scallions.",
+      "isVeg": true
+    },
+    {
+      "id": "ai-06",
+      "name": "Honey Chilli Potato",
+      "category": "asian-indo",
+      "price": 270,
+      "description": "Crunchy potato fingers tossed in a glistening honey, sesame, and chilli glaze.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sz-01",
+      "name": "Veg. Supreme Heaven",
+      "category": "sizzlers",
+      "price": 765,
+      "description": "Smoking cast iron platter with vegetable cutlets, buttered rice, French fries, and pepper sauce.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sz-02",
+      "name": "Paneer Shashlik",
+      "category": "sizzlers",
+      "price": 765,
+      "description": "Skewered marinated paneer, grilled tomatoes & capsicum served over sizzler noodles & BBQ glaze.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sz-03",
+      "name": "Mexican Sizzler",
+      "category": "sizzlers",
+      "price": 795,
+      "description": "Hot sizzling platter with Mexican spicy rice, bean patties, potato wedges, salsa, and cheese.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sp-01",
+      "name": "Exotic Veg. Tawa",
+      "category": "signature-punjabi",
+      "price": 340,
+      "description": "Zucchini, broccoli, baby corn, and peppers cooked on open tawa with rich onion-tomato masala.",
+      "isVeg": true
+    },
+    {
+      "id": "sp-02",
+      "name": "Dum Matka",
+      "category": "signature-punjabi",
+      "price": 360,
+      "description": "Earthen pot slow-cooked royal vegetable curry with smoky charcoal flavor.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sp-03",
+      "name": "Paneer Rolled Makhani",
+      "category": "signature-punjabi",
+      "price": 380,
+      "description": "Delicate paneer rolls simmered in a velvety buttery tomato makhani gravy.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sp-04",
+      "name": "Paneer Butter Masala",
+      "category": "signature-punjabi",
+      "price": 380,
+      "description": "Cottage cheese cubes bathed in an opulent tomato-butter gravy scented with kasuri methi.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sp-05",
+      "name": "Veg. Paneer Hum-Tum",
+      "category": "signature-punjabi",
+      "price": 420,
+      "description": "Harmonious duo of mixed vegetable masala and rich paneer makhani in one specialty pot.",
+      "isVeg": true
+    },
+    {
+      "id": "sp-06",
+      "name": "Kaju Green Gotalo",
+      "category": "signature-punjabi",
+      "price": 420,
+      "description": "Roasted whole cashew nuts and minced cottage cheese in an aromatic coriander-spinach sauce.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "sp-07",
+      "name": "Cheese Pasanda",
+      "category": "signature-punjabi",
+      "price": 430,
+      "description": "Stuffed cheese and nut pockets served in a smooth, mildly spiced royal Mughlai gravy.",
+      "isVeg": true
+    },
+    {
+      "id": "br-01",
+      "name": "Tandoor Roti Plain / Butter",
+      "category": "bread",
+      "price": 55,
+      "description": "Whole wheat flatbread baked directly on the walls of clay tandoor.",
+      "isVeg": true,
+      "options": [
+        {
+          "name": "Type",
+          "choices": [
+            {
+              "name": "Plain"
+            },
+            {
+              "name": "Butter"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "br-02",
+      "name": "Butter Naan",
+      "category": "bread",
+      "price": 85,
+      "description": "Refined flour leavened flatbread brushed with generous golden butter.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "br-03",
+      "name": "Luchha Paratha",
+      "category": "bread",
+      "price": 85,
+      "description": "Multi-layered flaky and crispy tandoori paratha.",
+      "isVeg": true
+    },
+    {
+      "id": "br-04",
+      "name": "Garlic Naan",
+      "category": "bread",
+      "price": 115,
+      "description": "Soft tandoori naan encrusted with minced roasted garlic and fresh coriander.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "br-05",
+      "name": "Cheese Garlic Naan",
+      "category": "bread",
+      "price": 125,
+      "description": "Decadent naan stuffed with molten mozzarella and topped with toasted garlic.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "br-06",
+      "name": "Butter Kulcha",
+      "category": "bread",
+      "price": 130,
+      "description": "Fluffy Amritsari style kulcha baked soft with butter and sesame.",
+      "isVeg": true
+    },
+    {
+      "id": "br-07",
+      "name": "Stuff Kulcha",
+      "category": "bread",
+      "price": 150,
+      "description": "Tandoori kulcha stuffed with spiced mashed potatoes, onions, and herbs.",
+      "isVeg": true
+    },
+    {
+      "id": "br-08",
+      "name": "Roti Basket",
+      "category": "bread",
+      "price": 420,
+      "description": "Assorted warm basket featuring Butter Roti, Butter Naan, Garlic Naan, and Laccha Paratha.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ex-01",
+      "name": "Roasted Papad",
+      "category": "extra",
+      "price": 55,
+      "description": "Crisp roasted lentil cracker with mild spice.",
+      "isVeg": true
+    },
+    {
+      "id": "ex-02",
+      "name": "Masala Papad",
+      "category": "extra",
+      "price": 85,
+      "description": "Crispy papad crowned with chopped onions, tomatoes, green chillies, and chaat masala.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ex-03",
+      "name": "Butter Milk",
+      "category": "extra",
+      "price": 85,
+      "description": "Chilled spiced chaas churned with roasted cumin, ginger, and fresh mint.",
+      "isVeg": true
+    },
+    {
+      "id": "ex-04",
+      "name": "Lassi",
+      "category": "extra",
+      "price": 145,
+      "description": "Traditional thick and creamy sweet yoghurt drink served in clay-style kulhad.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "ex-05",
+      "name": "Cold-Drink",
+      "category": "extra",
+      "price": 75,
+      "description": "Assorted carbonated soft beverages served chilled with lemon wedge.",
+      "isVeg": true
+    },
+    {
+      "id": "de-01",
+      "name": "Cheesecake",
+      "category": "dessert",
+      "price": 280,
+      "description": "Silky smooth baked cream cheese slice on buttery biscuit crumb.",
+      "isVeg": true,
+      "popular": true,
+      "addOns": [
+        {
+          "name": "Biscoff Flavor",
+          "price": 40
+        },
+        {
+          "name": "Nutella Flavor",
+          "price": 40
+        },
+        {
+          "name": "Blueberry Flavor",
+          "price": 40
+        },
+        {
+          "name": "Strawberry Flavor",
+          "price": 40
+        },
+        {
+          "name": "Mango Flavor",
+          "price": 40
+        }
+      ]
+    },
+    {
+      "id": "de-02",
+      "name": "Croissant",
+      "category": "dessert",
+      "price": 260,
+      "description": "Golden French flaky butter pastry freshly warmed.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Nutella Drizzle",
+          "price": 40
+        },
+        {
+          "name": "Biscoff Glaze",
+          "price": 40
+        },
+        {
+          "name": "Belgian Chocolate",
+          "price": 40
+        }
+      ]
+    },
+    {
+      "id": "de-03",
+      "name": "Almond Nutella Croissant",
+      "category": "dessert",
+      "price": 300,
+      "description": "Artisanal croissant filled with warm Nutella and crowned with roasted sliced almonds.",
+      "isVeg": true,
+      "popular": true
+    },
+    {
+      "id": "de-04",
+      "name": "Brownie",
+      "category": "dessert",
+      "price": 250,
+      "description": "Warm, gooey dark chocolate fudge brownie with crackly crust.",
+      "isVeg": true,
+      "addOns": [
+        {
+          "name": "Nutella Topping",
+          "price": 40
+        },
+        {
+          "name": "Biscoff Topping",
+          "price": 40
+        }
+      ]
+    },
+    {
+      "id": "de-05",
+      "name": "Brownie w Ice-Cream",
+      "category": "dessert",
+      "price": 320,
+      "description": "Warm fudge brownie paired with a generous scoop of vanilla bean ice cream and hot fudge.",
+      "isVeg": true,
+      "popular": true
+    }
+  ]
+}
