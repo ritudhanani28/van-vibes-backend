@@ -30,7 +30,7 @@ def test_public_tables_and_qr():
     response = client.get("/api/v1/tables")
     assert response.status_code == 200
     tables = response.json()
-    assert len(tables) == 12
+    assert len(tables) >= 12
 
     # 2. Validate valid QR token
     t1 = tables[0]
@@ -132,10 +132,10 @@ def test_order_lifecycle_and_state_machine():
     assert create_res.status_code == 201
     order = create_res.json()
     order_id = order["id"]
-    # 140 + 2*160 = 460 subtotal; 5% GST = 23.0; total = 483.0
+    # 140 + 2*160 = 460 subtotal; Tax removed = 0.0; total = 460.0
     assert order["subtotal"] == 460.0
-    assert order["tax"] == 23.0
-    assert order["total"] == 483.0
+    assert order["tax"] == 0.0
+    assert order["total"] == 460.0
     assert order["status"] == "PLACED"
 
     # 3. Chef login
@@ -145,18 +145,40 @@ def test_order_lifecycle_and_state_machine():
     )
     chef_token = chef_login.json()["access_token"]
 
-    # 4. Valid transition: PLACED -> ACCEPTED
-    accept_res = client.post(
+    # Chef cannot accept order (must be Admin)
+    chef_accept_res = client.post(
         f"/api/v1/orders/{order_id}/accept",
         headers={"Authorization": f"Bearer {chef_token}"},
+    )
+    assert chef_accept_res.status_code == 403
+
+    # Admin login & accepts order
+    admin_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@vaanvibes.com", "password": "admin123"},
+    )
+    admin_token = admin_login.json()["access_token"]
+
+    # 4. Valid transition: PLACED -> ACCEPTED by Admin
+    accept_res = client.post(
+        f"/api/v1/orders/{order_id}/accept",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert accept_res.status_code == 200
     assert accept_res.json()["status"] == "ACCEPTED"
 
-    # 5. Valid transition: ACCEPTED -> COMPLETED
+    # 5. Valid transition: Chef clicks Done -> IN_KITCHEN
+    done_res = client.post(
+        f"/api/v1/orders/{order_id}/done",
+        headers={"Authorization": f"Bearer {chef_token}"},
+    )
+    assert done_res.status_code == 200
+    assert done_res.json()["status"] == "IN_KITCHEN"
+
+    # 6. Admin completes order
     complete_res = client.post(
         f"/api/v1/orders/{order_id}/complete",
-        headers={"Authorization": f"Bearer {chef_token}"},
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert complete_res.status_code == 200
     assert complete_res.json()["status"] == "COMPLETED"

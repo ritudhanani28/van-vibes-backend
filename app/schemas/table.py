@@ -3,6 +3,14 @@ from pydantic import BaseModel, Field
 from app.schemas.dining_session import DiningSessionResponse
 
 
+class CreateTableRequest(BaseModel):
+    table_number: int = Field(..., alias="tableNumber")
+    capacity: Optional[int] = 4
+
+    class Config:
+        populate_by_name = True
+
+
 class TableBase(BaseModel):
     id: str
     table_number: int = Field(..., alias="tableNumber")

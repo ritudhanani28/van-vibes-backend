@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, get_optional_current_user, require_chef_or_admin
+from app.core.dependencies import get_current_user, get_optional_current_user, require_admin, require_chef_or_admin
 from app.db.session import get_db
 from app.models.billing import BillingInvoice
 from app.models.customer import Customer
@@ -132,9 +132,9 @@ async def create_order(payload: CreateOrderRequest, db: Session = Depends(get_db
         )
         order_items_to_add.append(order_item)
 
-    # 5% GST (2.5% CGST + 2.5% SGST)
-    tax = round(subtotal * 0.05, 2)
-    total = round(subtotal + tax, 2)
+    # Authoritative calculation without GST/taxes
+    tax = 0.0
+    total = subtotal
 
     # 5. Create Order with initial status PLACED linked to Dining Session
     new_order = Order(
@@ -174,19 +174,19 @@ async def create_order(payload: CreateOrderRequest, db: Session = Depends(get_db
         except (ValueError, TypeError, IndexError):
             continue
     inv_number = f"INV-2026-{max_inv_num + 1}"
-    cgst_amt = round(tax / 2, 2)
-    sgst_amt = round(tax - cgst_amt, 2)
+    cgst_amt = 0.0
+    sgst_amt = 0.0
     invoice = BillingInvoice(
         order_id=order_id,
         dining_session_id=session.id,
         bill_type="ORDER",
         invoice_number=inv_number,
         subtotal=subtotal,
-        cgst_rate=0.025,
-        cgst_amount=cgst_amt,
-        sgst_rate=0.025,
-        sgst_amount=sgst_amt,
-        tax_amount=tax,
+        cgst_rate=0.0,
+        cgst_amount=0.0,
+        sgst_rate=0.0,
+        sgst_amount=0.0,
+        tax_amount=0.0,
         discount_amount=0.0,
         total=total,
         payment_method="CASH",
@@ -283,13 +283,27 @@ def get_order(
 async def accept_order(
     order_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_chef_or_admin),
+    current_user: User = Depends(require_admin),
 ):
     """
     Accept order: transitions PLACED -> ACCEPTED.
     Enforces role authorization, verifies current state is PLACED, broadcasts ORDER_ACCEPTED.
     """
     order = await OrderService.accept_order(db=db, order_id=order_id)
+    return _format_order(order, role=current_user.role)
+
+
+@router.post("/{order_id}/done")
+async def done_order(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_chef_or_admin),
+):
+    """
+    Chef marks incoming order as Done: transitions ACCEPTED -> IN_KITCHEN.
+    Broadcasts ORDER_IN_KITCHEN and ORDER_STATUS_UPDATED.
+    """
+    order = await OrderService.done_order(db=db, order_id=order_id)
     return _format_order(order, role=current_user.role)
 
 

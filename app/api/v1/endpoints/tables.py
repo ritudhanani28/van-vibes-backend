@@ -7,13 +7,15 @@ from qrcode.image.pil import PilImage
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.dependencies import require_chef_or_admin
+from app.core.dependencies import require_admin, require_chef_or_admin
+from app.core.security import generate_table_token
 from app.db.session import get_db
 from app.models.table import Table
 from app.models.user import User
 from app.models.dining_session import DiningSession, SessionStatus
 from app.schemas.dining_session import DiningSessionResponse
 from app.schemas.table import (
+    CreateTableRequest,
     StandeeResponse,
     TableResponse,
     TableStatusUpdate,
@@ -39,6 +41,53 @@ def _format_table(t: Table, active_session: Optional[DiningSessionResponse] = No
         qr_code_url=scan_url,
         active_session=active_session,
     )
+
+
+
+@router.post("", response_model=TableResponse, status_code=status.HTTP_201_CREATED)
+async def create_table(
+    payload: CreateTableRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Create a new table with backend-generated cryptographic QR token (Admin only).
+    Validates table number > 0, prevents duplicate table numbers.
+    """
+    if payload.table_number <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Table number must be greater than 0.",
+        )
+
+    existing = db.query(Table).filter(Table.table_number == payload.table_number).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Table number {payload.table_number} already exists.",
+        )
+
+    table_id = f"T{payload.table_number:02d}"
+    if db.query(Table).filter(Table.id == table_id).first():
+        table_id = f"T{payload.table_number}"
+
+    token = generate_table_token(table_id)
+    new_table = Table(
+        id=table_id,
+        table_number=payload.table_number,
+        name=f"Table {payload.table_number:02d}",
+        token=token,
+        capacity=payload.capacity or 4,
+        status="AVAILABLE",
+        is_active=True,
+    )
+    db.add(new_table)
+    db.commit()
+    db.refresh(new_table)
+
+    await ws_manager.notify_table_status_updated(new_table.id, "AVAILABLE")
+
+    return _format_table(new_table)
 
 
 @router.get("", response_model=List[TableResponse])

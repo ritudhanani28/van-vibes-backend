@@ -170,13 +170,13 @@ class SessionService:
             )
 
         subtotal = round(sum(o.subtotal for o in valid_orders), 2)
-        tax = round(subtotal * 0.05, 2)
-        cgst_amt = round(tax / 2, 2)
-        sgst_amt = round(tax - cgst_amt, 2)
+        tax = 0.0
+        cgst_amt = 0.0
+        sgst_amt = 0.0
 
         discount_pct = max(0.0, min(100.0, float(discount_percentage or 0.0)))
         discount_amt = round(subtotal * (discount_pct / 100.0), 2)
-        total = round(max(0.0, subtotal + tax - discount_amt), 2)
+        total = round(max(0.0, subtotal - discount_amt), 2)
 
         now = datetime.now(timezone.utc)
 
@@ -199,9 +199,9 @@ class SessionService:
                 order_id=valid_orders[0].id if valid_orders else None,
                 bill_type="SESSION",
                 subtotal=subtotal,
-                cgst_rate=0.025,
+                cgst_rate=0.0,
                 cgst_amount=cgst_amt,
-                sgst_rate=0.025,
+                sgst_rate=0.0,
                 sgst_amount=sgst_amt,
                 tax_amount=tax,
                 discount_percentage=discount_pct,

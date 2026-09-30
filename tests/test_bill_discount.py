@@ -129,7 +129,7 @@ def test_order_item_price_never_zero_and_stored_historically():
 
 
 def test_bill_generation_without_discount():
-    """Bill without discount calculates normally: 460 + 23 = 483 Total."""
+    """Bill without discount and without GST: Total = 460.00."""
     admin_token, _ = _get_tokens()
     order = _create_order_for_billing()
     order_id = order["id"]
@@ -142,14 +142,14 @@ def test_bill_generation_without_discount():
     assert bill_res.status_code == 200, f"Generate failed: {bill_res.text}"
     bill = bill_res.json()
     assert bill["subtotal"] == 460.0
-    assert bill["taxAmount"] == 23.0
+    assert bill["taxAmount"] == 0.0
     assert bill["discountPercentage"] == 0.0
     assert bill["discountAmount"] == 0.0
-    assert bill["total"] == 483.0
+    assert bill["total"] == 460.0
 
 
 def test_bill_generation_with_percentage_discount():
-    """Bill with 10% discount: Subtotal 460 * 10% = 46.00 discount. Total = 460 + 23 - 46 = 437.00."""
+    """Bill with 10% discount without GST: Items 460 - 46 discount = 414.00 Total."""
     admin_token, _ = _get_tokens()
     order = _create_order_for_billing()
     order_id = order["id"]
@@ -162,10 +162,10 @@ def test_bill_generation_with_percentage_discount():
     assert bill_res.status_code == 200, f"Generate with discount failed: {bill_res.text}"
     bill = bill_res.json()
     assert bill["subtotal"] == 460.0
-    assert bill["taxAmount"] == 23.0
+    assert bill["taxAmount"] == 0.0
     assert bill["discountPercentage"] == 10.0
     assert bill["discountAmount"] == 46.0
-    assert bill["total"] == 437.0
+    assert bill["total"] == 414.0
 
     # Verify historical retention on subsequent GET /billing/{order_id}
     receipt_res = client.get(f"/api/v1/billing/{order_id}")
@@ -173,7 +173,7 @@ def test_bill_generation_with_percentage_discount():
     receipt = receipt_res.json()
     assert receipt["discountPercentage"] == 10.0
     assert receipt["discountAmount"] == 46.0
-    assert receipt["total"] == 437.0
+    assert receipt["total"] == 414.0
 
 
 def test_bill_percentage_discount_validation():

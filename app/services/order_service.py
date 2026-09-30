@@ -12,7 +12,8 @@ class OrderService:
 
     ALLOWED_TRANSITIONS: Dict[str, List[str]] = {
         OrderStatus.PLACED.value: [OrderStatus.ACCEPTED.value, OrderStatus.CANCELLED.value],
-        OrderStatus.ACCEPTED.value: [OrderStatus.COMPLETED.value],
+        OrderStatus.ACCEPTED.value: [OrderStatus.IN_KITCHEN.value, OrderStatus.COMPLETED.value],
+        OrderStatus.IN_KITCHEN.value: [OrderStatus.COMPLETED.value],
         OrderStatus.SERVED.value: [OrderStatus.COMPLETED.value],
         OrderStatus.COMPLETED.value: [],
         OrderStatus.CANCELLED.value: [],
@@ -70,6 +71,20 @@ class OrderService:
                 table_id=order.table_id,
                 updated_at=iso_updated_at,
             )
+        elif target_status == OrderStatus.IN_KITCHEN.value:
+            payload = {
+                "orderId": order.id,
+                "order_id": order.id,
+                "tableId": order.table_id,
+                "status": "IN_KITCHEN",
+                "updatedAt": iso_updated_at,
+            }
+            await ws_manager.broadcast_event(
+                event_type="ORDER_IN_KITCHEN",
+                admin_payload=payload,
+                chef_payload=payload,
+                table_id=order.table_id,
+            )
         elif target_status == OrderStatus.SERVED.value:
             await ws_manager.notify_order_served(
                 order_id=order.id,
@@ -97,6 +112,11 @@ class OrderService:
     async def accept_order(cls, db: Session, order_id: str) -> Order:
         """Accept an order: PLACED -> ACCEPTED"""
         return await cls.transition_order(db, order_id, OrderStatus.ACCEPTED.value)
+
+    @classmethod
+    async def done_order(cls, db: Session, order_id: str) -> Order:
+        """Chef marks incoming order as Done: transitions ACCEPTED -> IN_KITCHEN (Accepted / In Kitchen)."""
+        return await cls.transition_order(db, order_id, OrderStatus.IN_KITCHEN.value)
 
     @classmethod
     async def serve_order(cls, db: Session, order_id: str) -> Order:

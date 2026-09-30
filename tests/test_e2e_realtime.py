@@ -1,3 +1,4 @@
+import uuid
 import asyncio
 import json
 import pytest
@@ -9,6 +10,17 @@ WS_URL = "ws://127.0.0.1:8000/api/v1/ws/orders"
 
 @pytest.mark.asyncio
 async def test_full_e2e_flow_with_websocket():
+    from app.db.session import SessionLocal
+    from app.models.table import Table
+    from app.models.dining_session import DiningSession
+    with SessionLocal() as _db:
+        for _s in _db.query(DiningSession).filter(DiningSession.table_id == 'T09').all():
+            _s.status = 'CLOSED'
+            for _o in _s.orders:
+                _o.payment_status = 'PAID'
+        for _t in _db.query(Table).filter(Table.id == 'T09').all():
+            _t.status = 'AVAILABLE'
+        _db.commit()
     async with httpx.AsyncClient(base_url=BASE_URL) as client:
         # 1. Login as Admin
         admin_login_res = await client.post(
@@ -46,7 +58,7 @@ async def test_full_e2e_flow_with_websocket():
             order_payload = {
                 "tableId": "T09",
                 "token": table9["token"],
-                "sessionToken": "sess_e2e_ws_live",
+                "sessionToken": f"sess_e2e_{uuid.uuid4().hex[:8]}",
                 "customerName": "Simran Kaur",
                 "customerMobile": "9812345678",
                 "specialInstructions": "Extra foam",
@@ -68,39 +80,44 @@ async def test_full_e2e_flow_with_websocket():
             assert create_res.status_code == 201
             order_data = create_res.json()
             order_id = order_data["id"]
-            # 160 + 390 = 550 subtotal; 5% GST = 27.5; total = 577.5
+            # 160 + 390 = 550 subtotal; Tax removed = 0.0; total = 550.0
             assert order_data["subtotal"] == 550.0
-            assert order_data["tax"] == 27.5
-            assert order_data["total"] == 577.5
-            print(f"[OK] Customer Order placed: {order_id} (Subtotal: 550, Tax: 27.5, Total: 577.5)")
+            assert order_data["tax"] == 0.0
+            assert order_data["total"] == 550.0
+            print(f"[OK] Customer Order placed: {order_id} (Subtotal: 550, Tax: 0.0, Total: 550.0)")
 
             # 6. Receive WebSocket Event on Admin Socket
-            admin_msg_raw = await asyncio.wait_for(admin_ws.recv(), timeout=5.0)
-            admin_event = json.loads(admin_msg_raw)
-            assert admin_event["event"] in ["ORDER_PLACED", "ORDER_CREATED"]
+            while True:
+                admin_msg_raw = await asyncio.wait_for(admin_ws.recv(), timeout=5.0)
+                admin_event = json.loads(admin_msg_raw)
+                if admin_event["event"] in ["ORDER_PLACED", "ORDER_CREATED"]:
+                    break
             assert admin_event["data"]["id"] == order_id
             assert "subtotal" in admin_event["data"]
-            assert admin_event["data"]["total"] == 577.5
+            assert admin_event["data"]["total"] == 550.0
             print("[OK] Admin WebSocket received ORDER_CREATED with financial details")
 
             # 7. Receive WebSocket Event on Chef Socket (Sanitized Operational Data)
-            chef_msg_raw = await asyncio.wait_for(chef_ws.recv(), timeout=5.0)
-            chef_event = json.loads(chef_msg_raw)
-            assert chef_event["event"] in ["ORDER_PLACED", "ORDER_CREATED"]
+            while True:
+                chef_msg_raw = await asyncio.wait_for(chef_ws.recv(), timeout=5.0)
+                chef_event = json.loads(chef_msg_raw)
+                if chef_event["event"] in ["ORDER_PLACED", "ORDER_CREATED"]:
+                    break
             assert chef_event["data"]["id"] == order_id
             # Prices MUST be sanitized for chef!
             assert "subtotal" not in chef_event["data"]
             assert "total" not in chef_event["data"]
             print("[OK] Chef WebSocket received ORDER_CREATED with sanitized operational data")
 
-            # 8. Chef transitions order: PLACED -> ACCEPTED
+            # 8. Admin transitions order: PLACED -> ACCEPTED
+            admin_headers = {"Authorization": f"Bearer {admin_token}"}
             chef_headers = {"Authorization": f"Bearer {chef_token}"}
             accept_res = await client.post(
                 f"/orders/{order_id}/accept",
-                headers=chef_headers,
+                headers=admin_headers,
             )
             assert accept_res.status_code == 200
-            print(f"[OK] Chef accepted order: {order_id}")
+            print(f"[OK] Admin accepted order: {order_id}")
 
             # Verify WebSocket notification (ORDER_ACCEPTED or ORDER_STATUS_UPDATED)
             ws_raw = await asyncio.wait_for(admin_ws.recv(), timeout=5.0)
@@ -109,13 +126,13 @@ async def test_full_e2e_flow_with_websocket():
             assert status_msg["data"]["status"] == "ACCEPTED"
             print(f"[OK] WebSocket broadcasted {status_msg['event']} -> ACCEPTED")
 
-            # 9. Chef transitions order: ACCEPTED -> SERVED
-            serve_res = await client.post(
-                f"/orders/{order_id}/serve",
+            # 9. Chef transitions order: ACCEPTED -> IN_KITCHEN (Done)
+            done_res = await client.post(
+                f"/orders/{order_id}/done",
                 headers=chef_headers,
             )
-            assert serve_res.status_code == 200
-            print(f"[OK] Chef served order: {order_id}")
+            assert done_res.status_code == 200
+            print(f"[OK] Chef marked done (IN_KITCHEN): {order_id}")
 
             # 10. Admin settles bill via UPI
             admin_headers = {"Authorization": f"Bearer {admin_token}"}

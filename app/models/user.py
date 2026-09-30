@@ -1,3 +1,4 @@
+from typing import Optional
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, String
@@ -16,6 +17,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="CHEF")  # ADMIN, CHEF
+    contact_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     shift: Mapped[str] = mapped_column(String(50), nullable=True, default="Morning")
     assigned_station: Mapped[str] = mapped_column(String(100), nullable=True, default="Main Kitchen")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

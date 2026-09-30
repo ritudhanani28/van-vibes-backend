@@ -341,11 +341,11 @@ async def generate_bill(
             detail=f"Order '{order_id}' not found",
         )
 
-    # 1. Authoritative subtotal from persisted order items
+    # 1. Authoritative subtotal from persisted order items (No GST / taxes)
     subtotal = round(sum(oi.item_total for oi in order.items), 2)
-    tax = round(subtotal * 0.05, 2)
-    cgst = round(tax / 2, 2)
-    sgst = round(tax - cgst, 2)
+    tax = 0.0
+    cgst = 0.0
+    sgst = 0.0
 
     # 2. Validate discount percentage (0 to 100%)
     disc_pct = 0.0
@@ -364,8 +364,8 @@ async def generate_bill(
     # Server calculates authoritative discount amount from subtotal
     disc_amt = round(subtotal * (disc_pct / 100.0), 2)
 
-    # 3. Final total calculation: Subtotal + Tax - Discount
-    final_total = max(0.0, round(subtotal + tax - disc_amt, 2))
+    # 3. Final total calculation: Subtotal - Discount (No GST / tax)
+    final_total = max(0.0, round(subtotal - disc_amt, 2))
 
     # 4. Upsert BillingInvoice
     invoice = db.query(BillingInvoice).filter(BillingInvoice.order_id == order_id).first()
@@ -374,9 +374,9 @@ async def generate_bill(
             order_id=order.id,
             invoice_number=f"INV-2026-{order.id}",
             subtotal=subtotal,
-            cgst_rate=0.025,
+            cgst_rate=0.0,
             cgst_amount=cgst,
-            sgst_rate=0.025,
+            sgst_rate=0.0,
             sgst_amount=sgst,
             tax_amount=tax,
             discount_percentage=disc_pct,
@@ -474,9 +474,9 @@ async def settle_bill_payment(
             order_id=order.id,
             invoice_number=f"INV-2026-{order.id}",
             subtotal=order.subtotal,
-            cgst_rate=0.025,
+            cgst_rate=0.0,
             cgst_amount=cgst_amt,
-            sgst_rate=0.025,
+            sgst_rate=0.0,
             sgst_amount=sgst_amt,
             tax_amount=tax,
             discount_percentage=getattr(order, "discount_percentage", 0.0) or 0.0,
@@ -504,6 +504,7 @@ async def settle_bill_payment(
                 sess.status = SessionStatus.CLOSED.value
                 sess.closed_at = datetime.now(timezone.utc)
                 sess.updated_at = datetime.now(timezone.utc)
+                db.flush()
 
     # Check if table has an active OPEN session! If yes, table remains OCCUPIED!
     if order.table_id:

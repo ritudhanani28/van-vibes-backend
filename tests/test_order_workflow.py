@@ -66,20 +66,35 @@ def test_order_creation_initial_status_placed():
 
 
 def test_order_valid_workflow_lifecycle():
-    """Verify full sequential lifecycle: PLACED -> ACCEPTED -> COMPLETED."""
+    """Verify full sequential lifecycle: PLACED -> (Admin Accepts) -> ACCEPTED -> (Chef Done) -> IN_KITCHEN -> (Admin Complete) -> COMPLETED."""
     admin_token, chef_token = _get_tokens()
     order = _create_test_order()
     order_id = order["id"]
 
-    # 1. Accept Order: PLACED -> ACCEPTED (by Chef)
-    accept_res = client.post(
+    # 1. Chef MUST NOT be able to accept orders
+    chef_accept_res = client.post(
         f"/api/v1/orders/{order_id}/accept",
         headers={"Authorization": f"Bearer {chef_token}"},
     )
-    assert accept_res.status_code == 200, f"Accept failed: {accept_res.text}"
-    assert accept_res.json()["status"] == "ACCEPTED"
+    assert chef_accept_res.status_code == 403, f"Chef should not be able to accept order, got {chef_accept_res.status_code}"
 
-    # 2. Complete Order: ACCEPTED -> COMPLETED (by Admin)
+    # 2. Admin Accepts Order: PLACED -> ACCEPTED
+    admin_accept_res = client.post(
+        f"/api/v1/orders/{order_id}/accept",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_accept_res.status_code == 200, f"Admin accept failed: {admin_accept_res.text}"
+    assert admin_accept_res.json()["status"] == "ACCEPTED"
+
+    # 3. Chef clicks Done: ACCEPTED -> IN_KITCHEN
+    done_res = client.post(
+        f"/api/v1/orders/{order_id}/done",
+        headers={"Authorization": f"Bearer {chef_token}"},
+    )
+    assert done_res.status_code == 200, f"Chef done failed: {done_res.text}"
+    assert done_res.json()["status"] == "IN_KITCHEN"
+
+    # 4. Complete Order: IN_KITCHEN -> COMPLETED (by Admin)
     complete_res = client.post(
         f"/api/v1/orders/{order_id}/complete",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -103,7 +118,7 @@ def test_invalid_status_transitions_rejected():
     assert res.status_code == 400, f"Expected 400 for PLACED -> COMPLETED, got {res.status_code}"
 
     # Now advance to ACCEPTED
-    res_acc = client.post(f"/api/v1/orders/{order_id}/accept", headers={"Authorization": f"Bearer {chef_token}"})
+    res_acc = client.post(f"/api/v1/orders/{order_id}/accept", headers={"Authorization": f"Bearer {admin_token}"})
     assert res_acc.status_code == 200
 
     # 2. ACCEPTED -> SERVED (Invalid transition since SERVED was deprecated)
