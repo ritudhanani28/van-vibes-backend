@@ -116,19 +116,12 @@ class SessionService:
         """
         if requested_session_id:
             sess = db.query(DiningSession).filter(DiningSession.id == requested_session_id).first()
-            if not sess:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dining session '{requested_session_id}' not found",
-                )
-            if sess.status != SessionStatus.OPEN.value:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="The final bill has already been generated for this session. Please scan the QR code to start a new dining session.",
-                )
-            return sess
+            if sess and sess.status == SessionStatus.OPEN.value:
+                return sess
+            # If requested session not found or already BILL_GENERATED / CLOSED:
+            # Rule: Once bill is generated, do NOT append. Create/use a NEW dining session!
 
-        # Auto-join or auto-create OPEN session
+        # Auto-join or auto-create OPEN session for the table
         sess, _ = await cls.get_or_create_active_session(db, table_id)
         return sess
 

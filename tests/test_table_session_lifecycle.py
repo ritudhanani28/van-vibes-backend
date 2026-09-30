@@ -134,8 +134,8 @@ def test_complete_table_session_lifecycle():
     assert tbl_resp.status_code == 200
     assert tbl_resp.json()["status"] == "AVAILABLE"
 
-    # Step 6: Order submitted to BILL_GENERATED session S001 must be REJECTED
-    order_fail_payload = {
+    # Step 6: Order submitted after bill generation must NOT append to S001; it must create a new session!
+    order_new_session_payload = {
         "tableId": "T04",
         "token": token,
         "diningSessionId": s001_id,
@@ -144,18 +144,25 @@ def test_complete_table_session_lifecycle():
         "customerMobile": "9876543210",
         "items": [{"menuItemId": item1_id, "name": item1_name, "quantity": 1}]
     }
-    fail_resp = client.post("/api/v1/orders", json=order_fail_payload)
-    assert fail_resp.status_code == 400
-    assert "already been generated" in str(fail_resp.json()).lower()
+    resp6 = client.post("/api/v1/orders", json=order_new_session_payload)
+    assert resp6.status_code == 201
+    resp6_data = resp6.json()
+    # Must NOT append to S001; assigned to a new session!
+    assert resp6_data["diningSessionId"] != s001_id
 
-    # Step 7: New customer arrives at Table 4 while S001 bill is UNPAID!
-    # S002 created (OPEN), Table 4 becomes OCCUPIED by S002
+    # S001 order count remains 2 (Order was NOT appended to S001)
+    s001_check = client.get(f"/api/v1/dining-sessions/{s001_id}").json()
+    assert s001_check["orderCount"] == 2
+
+    s002_id = resp6_data["diningSessionId"]
+    assert s002_id != s001_id
+
+    # Step 7: Another guest arrives at Table 4 while S001 bill is UNPAID!
+    # Joins the newly created active OPEN session S002
     new_scan = client.post("/api/v1/tables/validate-qr", json={"tableId": "T04", "token": token})
     assert new_scan.status_code == 200
     new_scan_data = new_scan.json()
-    assert new_scan_data["isNewSession"] is True
-    s002_id = new_scan_data["diningSession"]["id"]
-    assert s002_id != s001_id
+    assert new_scan_data["diningSession"]["id"] == s002_id
     assert new_scan_data["table"]["status"] == "OCCUPIED"
 
     # New customer places Order in S002

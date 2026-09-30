@@ -404,10 +404,25 @@ async def generate_bill(
     order.total = final_total
     order.updated_at = datetime.now(timezone.utc)
 
+    # 6. Close current dining session for new orders (BILL_GENERATED) & release table
+    if order.dining_session_id:
+        sess = db.query(DiningSession).filter(DiningSession.id == order.dining_session_id).first()
+        if sess and sess.status == SessionStatus.OPEN.value:
+            sess.status = SessionStatus.BILL_GENERATED.value
+            sess.updated_at = datetime.now(timezone.utc)
+
+    tbl = db.query(Table).filter(Table.id == order.table_id).first()
+    if tbl:
+        tbl.status = "AVAILABLE"
+        tbl.updated_at = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(order)
     if invoice:
         db.refresh(invoice)
+
+    if tbl:
+        await ws_manager.notify_table_status_updated(tbl.id, "AVAILABLE")
 
     # Build receipt items
     items = [
