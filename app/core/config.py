@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
     # Security & Auth
     SECRET_KEY: str = "vaan_vibes_super_secret_jwt_key_2026_production_grade"
     ALGORITHM: str = "HS256"
@@ -55,7 +61,7 @@ class Settings(BaseSettings):
                 "http://localhost:3001",
                 "http://127.0.0.1:3000",
                 "http://127.0.0.1:3001",
-                "*"
+                "*",
             ]
         return [i.strip() for i in self.BACKEND_CORS_ORIGINS.split(",") if i.strip()]
 

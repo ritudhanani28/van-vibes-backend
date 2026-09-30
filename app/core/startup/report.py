@@ -207,7 +207,6 @@ def _render(app: Any, host: str, port: int) -> None:
     system_logger.info("")
 
     _section("Services")
-    _field("Queue", settings.QUEUE_NAME)
     middleware_count = len(getattr(app, "user_middleware", []))
     route_count = len(getattr(app, "routes", []))
     _field("Middleware", f"{middleware_count} registered")
