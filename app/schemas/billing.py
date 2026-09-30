@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class GenerateBillRequest(BaseModel):
     discount_percentage: Optional[float] = Field(None, alias="discountPercentage")
     discount_amount: Optional[float] = Field(None, alias="discountAmount")
+    extra_charge: Optional[float] = Field(0.0, alias="extraCharge")
 
     class Config:
         populate_by_name = True
@@ -28,6 +29,7 @@ class InvoiceResponse(BaseModel):
     tax_amount: float = Field(..., alias="taxAmount")
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
+    extra_charge: float = Field(0.0, alias="extraCharge")
     total: float
     payment_method: str = Field("CASH", alias="paymentMethod")
     payment_status: str = Field("PENDING", alias="paymentStatus")
@@ -70,6 +72,7 @@ class BillReceiptResponse(BaseModel):
     tax_amount: float = Field(..., alias="taxAmount")
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
+    extra_charge: float = Field(0.0, alias="extraCharge")
     total: float
     payment_status: str = Field(..., alias="paymentStatus")
     created_at: str = Field(..., alias="createdAt")

@@ -127,7 +127,7 @@ class SessionService:
 
     @classmethod
     async def generate_final_bill(
-        cls, db: Session, session_id: str, discount_percentage: float = 0.0
+        cls, db: Session, session_id: str, discount_percentage: float = 0.0, extra_charge: float = 0.0
     ) -> Tuple[BillingInvoice, DiningSession]:
         """
         Generate final consolidated bill for the dining session.
@@ -167,9 +167,10 @@ class SessionService:
         cgst_amt = 0.0
         sgst_amt = 0.0
 
+        extra_chg = max(0.0, float(extra_charge or 0.0))
         discount_pct = max(0.0, min(100.0, float(discount_percentage or 0.0)))
         discount_amt = round(subtotal * (discount_pct / 100.0), 2)
-        total = round(max(0.0, subtotal - discount_amt), 2)
+        total = round(max(0.0, subtotal - discount_amt + extra_chg), 2)
 
         now = datetime.now(timezone.utc)
 
@@ -199,6 +200,7 @@ class SessionService:
                 tax_amount=tax,
                 discount_percentage=discount_pct,
                 discount_amount=discount_amt,
+                extra_charge=extra_chg,
                 total=total,
                 payment_method="CASH",
                 payment_status="PENDING",
@@ -212,6 +214,7 @@ class SessionService:
             invoice.tax_amount = tax
             invoice.discount_percentage = discount_pct
             invoice.discount_amount = discount_amt
+            invoice.extra_charge = extra_chg
             invoice.total = total
             invoice.bill_type = "SESSION"
 

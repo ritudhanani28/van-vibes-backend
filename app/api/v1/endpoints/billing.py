@@ -106,7 +106,8 @@ def _format_session_receipt(session: DiningSession, invoice: Optional[BillingInv
     session_inv = invoice if (invoice and invoice.bill_type == "SESSION") else None
     disc_pct = session_inv.discount_percentage if session_inv else 0.0
     disc_amt = session_inv.discount_amount if session_inv else round(subtotal * (disc_pct / 100.0), 2)
-    total = session_inv.total if session_inv else round(max(0.0, subtotal + tax - disc_amt), 2)
+    extra_chg = session_inv.extra_charge if session_inv else 0.0
+    total = session_inv.total if session_inv else round(max(0.0, subtotal + tax - disc_amt + extra_chg), 2)
     pay_st = session_inv.payment_status if session_inv else ("PAID" if session.status == SessionStatus.CLOSED.value else "PENDING")
     inv_num = session_inv.invoice_number if session_inv else f"BILL-{session.id}"
     created_str = (session_inv.created_at if session_inv else session.created_at).strftime("%d %b %Y, %I:%M %p")
@@ -130,6 +131,7 @@ def _format_session_receipt(session: DiningSession, invoice: Optional[BillingInv
         tax_amount=tax,
         discount_percentage=disc_pct,
         discount_amount=disc_amt,
+        extra_charge=extra_chg,
         total=total,
         payment_status=pay_st,
         created_at=created_str,
@@ -150,7 +152,8 @@ async def generate_session_bill(
     Releases physical table to AVAILABLE immediately.
     """
     disc_pct = payload.discount_percentage if payload else 0.0
-    invoice, session = await SessionService.generate_final_bill(db, session_id, disc_pct)
+    extra_chg = payload.extra_charge if payload else 0.0
+    invoice, session = await SessionService.generate_final_bill(db, session_id, disc_pct, extra_charge=extra_chg)
     return _format_session_receipt(session, invoice)
 
 
@@ -300,6 +303,7 @@ def get_bill_receipt(order_id: str, db: Session = Depends(get_db)):
     sgst = round(tax_amt - cgst, 2)
     disc_pct = invoice.discount_percentage if invoice else (getattr(order, "discount_percentage", 0.0) or 0.0)
     disc_amt = invoice.discount_amount if invoice else (getattr(order, "discount_amount", 0.0) or 0.0)
+    extra_chg = invoice.extra_charge if invoice else (getattr(order, "extra_charge", 0.0) or 0.0)
 
     return BillReceiptResponse(
         bill_number=bill_number,
@@ -315,6 +319,7 @@ def get_bill_receipt(order_id: str, db: Session = Depends(get_db)):
         tax_amount=tax_amt,
         discount_percentage=disc_pct,
         discount_amount=disc_amt,
+        extra_charge=extra_chg,
         total=order.total,
         payment_status=order.payment_status,
         created_at=order.created_at.isoformat(),
@@ -349,11 +354,14 @@ async def generate_bill(
 
     # 2. Validate discount percentage (0 to 100%)
     disc_pct = 0.0
+    extra_chg = 0.0
     if payload:
         if payload.discount_percentage is not None:
             disc_pct = float(payload.discount_percentage)
         elif payload.discount_amount is not None and subtotal > 0:
             disc_pct = round((float(payload.discount_amount) / subtotal) * 100.0, 2)
+        if payload.extra_charge is not None:
+            extra_chg = max(0.0, float(payload.extra_charge))
 
     if disc_pct < 0.0 or disc_pct > 100.0:
         raise HTTPException(
@@ -364,8 +372,8 @@ async def generate_bill(
     # Server calculates authoritative discount amount from subtotal
     disc_amt = round(subtotal * (disc_pct / 100.0), 2)
 
-    # 3. Final total calculation: Subtotal - Discount (No GST / tax)
-    final_total = max(0.0, round(subtotal - disc_amt, 2))
+    # 3. Final total calculation: Subtotal - Discount + Extra Charge
+    final_total = max(0.0, round(subtotal - disc_amt + extra_chg, 2))
 
     # 4. Upsert BillingInvoice
     invoice = db.query(BillingInvoice).filter(BillingInvoice.order_id == order_id).first()
@@ -381,6 +389,7 @@ async def generate_bill(
             tax_amount=tax,
             discount_percentage=disc_pct,
             discount_amount=disc_amt,
+            extra_charge=extra_chg,
             total=final_total,
             payment_method="CASH",
             payment_status="PENDING",
@@ -394,6 +403,7 @@ async def generate_bill(
         invoice.tax_amount = tax
         invoice.discount_percentage = disc_pct
         invoice.discount_amount = disc_amt
+        invoice.extra_charge = extra_chg
         invoice.total = final_total
 
     # 5. Persist on Order
@@ -401,6 +411,7 @@ async def generate_bill(
     order.tax = tax
     order.discount_percentage = disc_pct
     order.discount_amount = disc_amt
+    order.extra_charge = extra_chg
     order.total = final_total
     order.updated_at = datetime.now(timezone.utc)
 
@@ -452,6 +463,7 @@ async def generate_bill(
         tax_amount=tax,
         discount_percentage=disc_pct,
         discount_amount=disc_amt,
+        extra_charge=extra_chg,
         total=final_total,
         payment_status=order.payment_status,
         created_at=order.created_at.isoformat(),

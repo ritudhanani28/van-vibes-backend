@@ -48,6 +48,7 @@ class Order(Base):
     tax: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)  # 5% GST
     discount_percentage: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     discount_amount: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    extra_charge: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     total: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
