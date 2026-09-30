@@ -62,10 +62,26 @@ async def create_table(
 
     existing = db.query(Table).filter(Table.table_number == payload.table_number).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Table number {payload.table_number} already exists.",
-        )
+        if not existing.is_active:
+            existing.is_active = True
+            existing.capacity = payload.capacity or 4
+            existing.status = "AVAILABLE"
+            existing.token = generate_table_token(existing.id)
+            db.commit()
+            db.refresh(existing)
+            await ws_manager.notify_table_status_updated(existing.id, "AVAILABLE")
+            await ws_manager.broadcast_event(
+                event_type="TABLE_CREATED",
+                admin_payload={"tableId": existing.id, "tableNumber": existing.table_number},
+                chef_payload={"tableId": existing.id, "tableNumber": existing.table_number},
+                table_id=existing.id,
+            )
+            return _format_table(existing)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Table number {payload.table_number} already exists.",
+            )
 
     table_id = f"T{payload.table_number:02d}"
     if db.query(Table).filter(Table.id == table_id).first():
@@ -86,6 +102,12 @@ async def create_table(
     db.refresh(new_table)
 
     await ws_manager.notify_table_status_updated(new_table.id, "AVAILABLE")
+    await ws_manager.broadcast_event(
+        event_type="TABLE_CREATED",
+        admin_payload={"tableId": new_table.id, "tableNumber": new_table.table_number},
+        chef_payload={"tableId": new_table.id, "tableNumber": new_table.table_number},
+        table_id=new_table.id,
+    )
 
     return _format_table(new_table)
 
@@ -302,3 +324,43 @@ def get_table_standee_data(table_id: str, db: Session = Depends(get_db)):
         scan_url=target_url,
         qr_image_url=b64_qr,
     )
+
+@router.delete("/{table_id}")
+async def delete_table(
+    table_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Delete a table (Admin only). Checks for active open session, sets is_active = False."""
+    table = db.query(Table).filter(Table.id == table_id, Table.is_active == True).first()
+    if not table:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table '{table_id}' not found",
+        )
+
+    open_session = (
+        db.query(DiningSession)
+        .filter(
+            DiningSession.table_id == table_id,
+            DiningSession.status == SessionStatus.OPEN.value,
+        )
+        .first()
+    )
+    if open_session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete Table {table.table_number} because it has an active dining session ({open_session.id}). Please settle or close the session first.",
+        )
+
+    table.is_active = False
+    db.commit()
+
+    await ws_manager.broadcast_event(
+        event_type="TABLE_DELETED",
+        admin_payload={"tableId": table_id, "tableNumber": table.table_number},
+        chef_payload={"tableId": table_id, "tableNumber": table.table_number},
+        table_id=table_id,
+    )
+
+    return {"message": f"Table {table.table_number} deleted successfully", "id": table_id}

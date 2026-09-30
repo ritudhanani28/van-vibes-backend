@@ -94,3 +94,48 @@ def test_admin_add_table_and_qr_generation():
     qr_res = client.get(f'/api/v1/tables/T{table_num}/qr')
     assert qr_res.status_code == 200
     assert qr_res.headers['content-type'] == 'image/png'
+
+def test_admin_delete_table():
+    import random
+    admin_token = _get_admin_token()
+    # Find unused table number
+    list_res = client.get('/api/v1/tables')
+    existing_nums = {t['tableNumber'] for t in list_res.json()} if list_res.status_code == 200 else set()
+    table_num = 200
+    while table_num in existing_nums:
+        table_num += 1
+
+    # Create table
+    res = client.post(
+        '/api/v1/tables',
+        headers={'Authorization': f'Bearer {admin_token}'},
+        json={'tableNumber': table_num, 'capacity': 4}
+    )
+    if res.status_code != 201:
+        # If ID conflict due to inactive table, try random high numbers
+        for alt in range(300, 400):
+            res = client.post(
+                '/api/v1/tables',
+                headers={'Authorization': f'Bearer {admin_token}'},
+                json={'tableNumber': alt, 'capacity': 4}
+            )
+            if res.status_code == 201:
+                table_num = alt
+                break
+
+    assert res.status_code == 201
+    table_id = res.json()['id']
+
+    # Delete table as admin
+    del_res = client.delete(
+        f'/api/v1/tables/{table_id}',
+        headers={'Authorization': f'Bearer {admin_token}'}
+    )
+    assert del_res.status_code == 200
+    assert 'deleted successfully' in del_res.json()['message']
+
+    # Table is no longer in active tables list
+    list_res = client.get('/api/v1/tables')
+    assert list_res.status_code == 200
+    table_ids = [t['id'] for t in list_res.json()]
+    assert table_id not in table_ids
