@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # Frontend URLs
     CUSTOMER_FRONTEND_URL: str = "http://localhost:3000"
-    MANAGEMENT_FRONTEND_URL: str = "http://localhost:3001"
+    MANAGEMENT_FRONTEND_URL: str = "http://localhost:4000"
 
     @property
     def allowed_hosts_list(self) -> list[str]:
@@ -59,8 +59,10 @@ class Settings(BaseSettings):
             return [
                 "http://localhost:3000",
                 "http://localhost:3001",
+                "http://localhost:4000",
                 "http://127.0.0.1:3000",
                 "http://127.0.0.1:3001",
+                "http://127.0.0.1:4000",
                 "*",
             ]
         return [i.strip() for i in self.BACKEND_CORS_ORIGINS.split(",") if i.strip()]
