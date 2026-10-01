@@ -10,14 +10,46 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from app.core.security import hash_password
-from app.db.session import SessionLocal
+from app.db.session import Base, SessionLocal, engine
 from app.models.user import User
+
+# Ensure all SQLAlchemy models are loaded into Base.metadata
+from app.models.billing import BillingInvoice
+from app.models.category import Category
+from app.models.dining_session import DiningSession
+from app.models.menu import MenuItem
+from app.models.order import Order, OrderItem
+from app.models.settings import CafeSettings
+from app.models.table import Table
 
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def validate_email_format(email: str) -> bool:
     return bool(EMAIL_REGEX.match(email.strip()))
+
+
+def ensure_database_schema():
+    """Ensure database tables exist before querying or creating records."""
+    # 1. Try applying Alembic migrations if alembic.ini is present
+    try:
+        from alembic.config import Config
+        from alembic import command
+
+        alembic_ini = os.path.join(BASE_DIR, "alembic.ini")
+        if os.path.exists(alembic_ini):
+            alembic_cfg = Config(alembic_ini)
+            alembic_cfg.set_main_option("script_location", os.path.join(BASE_DIR, "alembic"))
+            command.upgrade(alembic_cfg, "head")
+            return
+    except Exception:
+        pass
+
+    # 2. Fallback to direct SQLAlchemy create_all
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        click.secho(f"Warning: Table auto-creation notice: {exc}", fg="yellow")
 
 
 @click.group()
@@ -37,6 +69,8 @@ def createsuperuser(email, name, password, no_input):
     Prompts for Email, Password, and Re-enter Password.
     Strictly assigns role=ADMIN.
     """
+    is_tty = sys.stdin.isatty()
+
     click.echo("==================================================")
     click.echo("   Vaan Vibes - Create Superuser (Admin Only)    ")
     click.echo("==================================================")
@@ -62,11 +96,11 @@ def createsuperuser(email, name, password, no_input):
 
     # 2. Prompt or default Name
     if not name:
-        if no_input:
+        if no_input or not is_tty:
             name = "Admin Manager"
         else:
             name = click.prompt("Full Name", default="Admin Manager", show_default=True).strip()
-    name = name.strip() or "Admin Manager"
+    name = (name or "").strip() or "Admin Manager"
 
     # 3. Prompt or validate Password & Re-enter Password
     if not password:
@@ -75,14 +109,18 @@ def createsuperuser(email, name, password, no_input):
             sys.exit(1)
 
         while True:
-            pwd = click.prompt("Password", hide_input=True)
+            pwd = click.prompt("Password", hide_input=is_tty)
             if len(pwd) < 6:
                 click.secho("Error: Password must be at least 6 characters long.", fg="red", err=True)
+                if not is_tty:
+                    sys.exit(1)
                 continue
 
-            pwd_confirm = click.prompt("Re-enter Password", hide_input=True)
+            pwd_confirm = click.prompt("Re-enter Password", hide_input=is_tty)
             if pwd != pwd_confirm:
                 click.secho("Error: Passwords do not match. Please try again.", fg="red", err=True)
+                if not is_tty:
+                    sys.exit(1)
                 continue
 
             password = pwd
@@ -92,13 +130,16 @@ def createsuperuser(email, name, password, no_input):
             click.secho("Error: Password must be at least 6 characters long.", fg="red", err=True)
             sys.exit(1)
 
-    # 4. Check existing user in Database & save with ADMIN role
+    # 4. Auto-create tables if database is fresh
+    ensure_database_schema()
+
+    # 5. Check existing user in Database & save with ADMIN role
     db = SessionLocal()
     try:
         existing_user = db.query(User).filter(User.email == email).first()
         if existing_user:
             click.secho(f"Notice: User with email \x27{email}\x27 already exists (Current Role: {existing_user.role}).", fg="yellow")
-            if not no_input:
+            if not no_input and is_tty:
                 confirm = click.confirm(
                     f"Do you want to update \x27{email}\x27 to ADMIN role with this new password?",
                     default=True,

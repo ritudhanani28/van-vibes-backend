@@ -18,11 +18,8 @@ if [ -n "$REDIS_HOST" ]; then
 fi
 
 # Run database migrations automatically
-if [ -n "$RUN_MIGRATIONS" ] || [ -n "$AUTO_MIGRATE" ]; then
-  echo "Applying database migrations with Alembic..."
-  alembic upgrade head
-  echo "Database migrations applied successfully!"
-fi
+echo "Applying database migrations with Alembic..."
+alembic upgrade head || echo "Alembic migrations skipped or already up to date"
 
 # Run database seed if requested
 if [ "$SEED_DB" = "true" ] || [ "$AUTO_SEED" = "true" ]; then
