@@ -1,25 +1,27 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: doc_service_db
+    container_name: van_vibes_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: doc_processing_db
+      POSTGRES_DB: vaan_vibes_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d doc_processing_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vaan_vibes_db"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - van_vibes_network
 
   redis:
     image: redis:7-alpine
-    container_name: doc_service_redis
+    container_name: van_vibes_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -30,13 +32,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - van_vibes_network
 
-  web:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: doc_service_web
-
+    container_name: van_vibes_backend
     restart: unless-stopped
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     ports:
@@ -46,8 +49,13 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      DATABASE_URL: "postgresql+psycopg2://postgres:postgrespassword@db:5432/doc_processing_db"
+      DATABASE_URL: "postgresql+psycopg2://postgres:postgrespassword@db:5432/vaan_vibes_db"
       REDIS_URL: "redis://redis:6379/0"
+      ENVIRONMENT: "development"
+      DEBUG: "True"
+      AUTO_SEED: "false"
+      BACKEND_CORS_ORIGINS: "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://frontend:3000,http://management:3001"
+      ALLOWED_HOSTS: "*"
     volumes:
       - .:/app
     depends_on:
@@ -55,7 +63,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - van_vibes_network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  van_vibes_network:
+    name: van_vibes_network
+    driver: bridge
