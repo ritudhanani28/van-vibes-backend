@@ -322,3 +322,153 @@ class SessionService:
             await ws_manager.notify_table_status_updated(tbl.id, "AVAILABLE")
 
         return invoice, sess
+
+    @classmethod
+    async def transfer_table_session(
+        cls, db: Session, source_table_id: str, dest_table_id: str
+    ) -> Tuple[DiningSession, Table, Table, List[str]]:
+        """
+        Table Swipe / Transfer domain operation:
+        Atomically transfers an active unbilled dining session and all its associated
+        orders from source table to destination table.
+        Releases source table to AVAILABLE, marks destination table OCCUPIED.
+        Broadcasts real-time events to all clients.
+        """
+        if source_table_id == dest_table_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Source and destination table cannot be the same.",
+            )
+
+        source_table = (
+            db.query(Table)
+            .filter(Table.id == source_table_id, Table.is_active == True)
+            .first()
+        )
+        if not source_table:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Source table '{source_table_id}' not found or is inactive.",
+            )
+
+        dest_table = (
+            db.query(Table)
+            .filter(Table.id == dest_table_id, Table.is_active == True)
+            .first()
+        )
+        if not dest_table:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Destination table '{dest_table_id}' not found or is inactive.",
+            )
+
+        if dest_table.status != "AVAILABLE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Destination Table {dest_table.table_number} is currently {dest_table.status}. Only available tables can be selected as destination.",
+            )
+
+        dest_open_session = (
+            db.query(DiningSession)
+            .filter(
+                DiningSession.table_id == dest_table.id,
+                DiningSession.status == SessionStatus.OPEN.value,
+            )
+            .first()
+        )
+        if dest_open_session:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Destination Table {dest_table.table_number} already has an active dining session.",
+            )
+
+        active_session = (
+            db.query(DiningSession)
+            .filter(
+                DiningSession.table_id == source_table.id,
+                DiningSession.status == SessionStatus.OPEN.value,
+            )
+            .first()
+        )
+        if not active_session:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Source Table {source_table.table_number} has no active unbilled dining session.",
+            )
+
+        if active_session.status != SessionStatus.OPEN.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Dining session on Table {source_table.table_number} is already {active_session.status} and cannot be transferred.",
+            )
+
+        finalized_invoice = (
+            db.query(BillingInvoice)
+            .filter(
+                BillingInvoice.dining_session_id == active_session.id,
+                BillingInvoice.payment_status == "PAID",
+            )
+            .first()
+        )
+        if finalized_invoice:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Dining session on Table {source_table.table_number} has already been paid and closed.",
+            )
+
+        now = datetime.now(timezone.utc)
+
+        # 1. Re-associate session with destination table
+        active_session.table_id = dest_table.id
+        active_session.table_number = dest_table.table_number
+        active_session.updated_at = now
+
+        # 2. Re-associate all orders belonging to this active session
+        order_ids: List[str] = []
+        for order in active_session.orders:
+            order.table_id = dest_table.id
+            order.table_number = dest_table.table_number
+            order.updated_at = now
+            order_ids.append(order.id)
+
+        # 3. Update table statuses
+        source_table.status = "AVAILABLE"
+        source_table.updated_at = now
+
+        dest_table.status = "OCCUPIED"
+        dest_table.updated_at = now
+
+        db.commit()
+        db.refresh(active_session)
+        db.refresh(source_table)
+        db.refresh(dest_table)
+
+        # 4. Broadcast real-time notifications
+        await ws_manager.notify_table_status_updated(source_table.id, "AVAILABLE")
+        await ws_manager.notify_table_status_updated(dest_table.id, "OCCUPIED")
+
+        transfer_payload = {
+            "sourceTableId": source_table.id,
+            "sourceTableNumber": source_table.table_number,
+            "destinationTableId": dest_table.id,
+            "destinationTableNumber": dest_table.table_number,
+            "sessionId": active_session.id,
+            "orderIds": order_ids,
+        }
+
+        await ws_manager.broadcast_event(
+            event_type="TABLE_TRANSFERRED",
+            admin_payload=transfer_payload,
+            chef_payload=transfer_payload,
+        )
+
+        for order in active_session.orders:
+            await ws_manager.notify_order_status_updated(
+                order_id=order.id,
+                new_status=order.status,
+                table_id=dest_table.id,
+                updated_at=now.isoformat(),
+            )
+
+        return active_session, source_table, dest_table, order_ids
+

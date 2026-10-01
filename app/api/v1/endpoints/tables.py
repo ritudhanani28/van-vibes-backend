@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import base64
 import io
 from typing import List, Optional
@@ -21,6 +22,8 @@ from app.schemas.table import (
     StandeeResponse,
     TableResponse,
     TableStatusUpdate,
+    TableTransferRequest,
+    TableTransferResponse,
     ValidateQRRequest,
     ValidateQRResponse,
 )
@@ -179,7 +182,7 @@ def get_tables(request: Request, db: Session = Depends(get_db)):
     
     result = []
     for t in tables:
-        s = sess_by_table.get(t.id)
+        s = sess_by_table.get(t.id) if t.status == "OCCUPIED" else None
         s_resp = None
         if s:
             s_resp = DiningSessionResponse(
@@ -208,7 +211,7 @@ def get_table(table_id: str, request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Table '{table_id}' not found",
         )
-    s = db.query(DiningSession).filter(DiningSession.table_id == t.id, DiningSession.status == SessionStatus.OPEN.value).first()
+    s = db.query(DiningSession).filter(DiningSession.table_id == t.id, DiningSession.status == SessionStatus.OPEN.value).first() if t.status == "OCCUPIED" else None
     s_resp = None
     if s:
         s_resp = DiningSessionResponse(
@@ -295,6 +298,35 @@ async def update_table_status(
         )
 
     table.status = payload.status
+    now = datetime.now(timezone.utc)
+
+    if payload.status == "AVAILABLE":
+        # Cleanly close any lingering open session on this table
+        open_sess = (
+            db.query(DiningSession)
+            .filter(
+                DiningSession.table_id == table.id,
+                DiningSession.status == SessionStatus.OPEN.value,
+            )
+            .first()
+        )
+        if open_sess:
+            open_sess.status = SessionStatus.CLOSED.value
+            open_sess.closed_at = now
+            open_sess.updated_at = now
+    elif payload.status == "OCCUPIED":
+        # Ensure an active session is attached so swipe/orders work seamlessly
+        open_sess = (
+            db.query(DiningSession)
+            .filter(
+                DiningSession.table_id == table.id,
+                DiningSession.status == SessionStatus.OPEN.value,
+            )
+            .first()
+        )
+        if not open_sess:
+            await SessionService.get_or_create_active_session(db, table.id)
+
     db.commit()
     db.refresh(table)
 
@@ -455,3 +487,41 @@ async def delete_table(
     )
 
     return {"message": f"Table {table.table_number} deleted successfully", "id": table_id}
+
+
+@router.post("/swipe", response_model=TableTransferResponse)
+@router.post("/transfer", response_model=TableTransferResponse)
+async def swipe_table(
+    payload: TableTransferRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Table Swipe / Transfer operation (Admin only):
+    Atomically moves an active dining session and its associated orders from source table to destination table.
+    """
+    session, source_tbl, dest_tbl, order_ids = await SessionService.transfer_table_session(
+        db, payload.source_table_id, payload.destination_table_id
+    )
+
+    dest_session_resp = DiningSessionResponse(
+        id=session.id,
+        table_id=session.table_id,
+        table_number=session.table_number,
+        status=session.status,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        closed_at=session.closed_at,
+        order_count=len(session.orders) if session.orders else 0,
+        total_amount=sum(o.total for o in session.orders) if session.orders else 0.0,
+        payment_status="PENDING",
+        table_status="OCCUPIED",
+    )
+
+    return TableTransferResponse(
+        message=f"Successfully swiped Table {source_tbl.table_number:02d} to Table {dest_tbl.table_number:02d}",
+        sessionId=session.id,
+        sourceTable=_format_table(source_tbl, active_session=None),
+        destinationTable=_format_table(dest_tbl, active_session=dest_session_resp),
+        orderIds=order_ids,
+    )

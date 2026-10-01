@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.schemas.dining_session import DiningSessionResponse
 
@@ -60,3 +60,22 @@ class StandeeResponse(BaseModel):
     capacity: int
     scan_url: str
     qr_image_url: str
+
+
+class TableTransferRequest(BaseModel):
+    source_table_id: str = Field(..., alias="sourceTableId", description="Source table ID e.g. T01")
+    destination_table_id: str = Field(..., alias="destinationTableId", description="Destination table ID e.g. T02")
+
+    class Config:
+        populate_by_name = True
+
+
+class TableTransferResponse(BaseModel):
+    message: str
+    session_id: str = Field(..., alias="sessionId")
+    source_table: TableResponse = Field(..., alias="sourceTable")
+    destination_table: TableResponse = Field(..., alias="destinationTable")
+    order_ids: List[str] = Field(default_factory=list, alias="orderIds")
+
+    class Config:
+        populate_by_name = True
