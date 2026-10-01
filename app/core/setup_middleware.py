@@ -15,7 +15,8 @@ def setup_middleware(app: FastAPI) -> None:
 
     # CORS Middleware - Handles Cross-Origin Resource Sharing
     # Allow localhost, 127.0.0.1, LAN IPs (192.168.x.x, 10.x.x.x, 172.x.x.x), and any configured origins
-    allow_origin_regex = r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$"
+    # Allow any HTTP/HTTPS origin (localhost, LAN, public IPs such as 84.247.143.242, and domains)
+    allow_origin_regex = r"^https?://.*$"
 
     app.add_middleware(
         CORSMiddleware,
