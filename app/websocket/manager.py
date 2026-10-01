@@ -75,6 +75,11 @@ class ConnectionManager:
                     await ws.send_text(
                         json.dumps({"event": event_type, "data": chef_payload})
                     )
+                elif event_type.startswith("MENU_"):
+                    # Public menu catalog events are broadcast to all clients (tables and guests)
+                    await ws.send_text(
+                        json.dumps({"event": event_type, "data": chef_payload})
+                    )
                 elif role == "TABLE" and table_id and identifier == table_id:
                     # Tables receive non-confidential payload
                     await ws.send_text(
@@ -233,9 +238,17 @@ class ConnectionManager:
         )
 
     async def notify_menu_availability_changed(self, item_id: str, is_available: bool):
-        payload = {"itemId": item_id, "isAvailable": is_available}
+        payload = {"itemId": item_id, "id": item_id, "isAvailable": is_available}
         await self.broadcast_event(
             event_type="MENU_AVAILABILITY_CHANGED",
+            admin_payload=payload,
+            chef_payload=payload,
+        )
+
+    async def notify_menu_item_deleted(self, item_id: str):
+        payload = {"itemId": item_id, "id": item_id}
+        await self.broadcast_event(
+            event_type="MENU_ITEM_DELETED",
             admin_payload=payload,
             chef_payload=payload,
         )

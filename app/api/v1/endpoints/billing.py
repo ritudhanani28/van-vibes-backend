@@ -526,7 +526,10 @@ async def settle_bill_payment(
     if order.dining_session_id:
         sess = db.query(DiningSession).filter(DiningSession.id == order.dining_session_id).first()
         if sess:
-            all_paid = all(o.payment_status == "PAID" for o in sess.orders if o.id != order.id)
+            valid_orders = [o for o in sess.orders if o.status != OrderStatus.CANCELLED.value]
+            all_paid = len(valid_orders) > 0 and all(
+                (o.payment_status == "PAID" or o.id == order.id) for o in valid_orders
+            )
             if all_paid:
                 sess.status = SessionStatus.CLOSED.value
                 sess.closed_at = datetime.now(timezone.utc)

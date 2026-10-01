@@ -169,7 +169,7 @@ async def toggle_availability(
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_200_OK)
-def delete_menu_item(
+async def delete_menu_item(
     item_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -183,4 +183,6 @@ def delete_menu_item(
         )
     db.delete(item)
     db.commit()
+    # Broadcast real-time deletion to all connected clients
+    await ws_manager.notify_menu_item_deleted(item_id)
     return {"message": f"Menu item '{item_id}' deleted successfully", "id": item_id}

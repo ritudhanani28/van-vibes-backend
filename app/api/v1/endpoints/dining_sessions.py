@@ -25,19 +25,28 @@ def _format_session(s: DiningSession, tbl_status: Optional[str] = None) -> Dinin
     valid_orders = [o for o in s.orders if o.status != OrderStatus.CANCELLED.value] if s.orders else []
     total_amt = sum(o.total for o in valid_orders) if valid_orders else 0.0
     
+    # Check if all valid orders are paid
+    all_orders_paid = len(valid_orders) > 0 and all(o.payment_status == "PAID" for o in valid_orders)
+
     # Find authoritative session invoice if generated
     session_inv = next((i for i in s.invoices if i.bill_type == "SESSION"), None)
     if session_inv:
         total_amt = session_inv.total
         payment_st = session_inv.payment_status
+    elif all_orders_paid:
+        payment_st = "PAID"
     else:
         payment_st = "PAID" if s.status == SessionStatus.CLOSED.value else "PENDING"
     
+    effective_status = s.status
+    if all_orders_paid or (session_inv and session_inv.payment_status == "PAID"):
+        effective_status = SessionStatus.CLOSED.value
+
     return DiningSessionResponse(
         id=s.id,
         table_id=s.table_id,
         table_number=s.table_number,
-        status=s.status,
+        status=effective_status,
         created_at=s.created_at,
         updated_at=s.updated_at,
         closed_at=s.closed_at,
