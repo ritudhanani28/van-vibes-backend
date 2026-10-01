@@ -54,6 +54,8 @@ services:
       ENVIRONMENT: "development"
       DEBUG: "True"
       AUTO_SEED: "false"
+      CUSTOMER_FRONTEND_URL: "http://84.247.143.242:4000"
+      MANAGEMENT_FRONTEND_URL: "http://84.247.143.242:4001"
       BACKEND_CORS_ORIGINS: "http://localhost:4000,http://localhost:4001,http://127.0.0.1:4000,http://127.0.0.1:4001,http://frontend:4000,http://management:4001"
       ALLOWED_HOSTS: "*"
     volumes:

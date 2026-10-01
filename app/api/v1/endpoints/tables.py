@@ -1,7 +1,9 @@
 import base64
 import io
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
+from urllib.parse import urlparse
 import qrcode
 from qrcode.image.pil import PilImage
 from sqlalchemy.orm import Session
@@ -28,8 +30,59 @@ from app.websocket.manager import ws_manager
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
 
-def _format_table(t: Table, active_session: Optional[DiningSessionResponse] = None) -> TableResponse:
-    scan_url = f"{settings.CUSTOMER_FRONTEND_URL}/cafe/van-vibes/menu?table={t.id}&token={t.token}"
+def resolve_customer_frontend_url(
+    request: Optional[Request] = None,
+    frontend_url: Optional[str] = None,
+) -> str:
+    """
+    Dynamically resolves customer-facing frontend URL (port 4000).
+    Guarantees production links & QR codes point to the real host/domain.
+    """
+    # 1. Direct explicit param override
+    if frontend_url and frontend_url.strip():
+        clean_url = frontend_url.strip().rstrip("/")
+        if not any(h in clean_url for h in ("localhost", "127.0.0.1")):
+            return clean_url
+
+    # 2. Configured production setting (if not localhost)
+    configured = (settings.CUSTOMER_FRONTEND_URL or "").strip().rstrip("/")
+    if configured and not any(h in configured for h in ("localhost", "127.0.0.1")):
+        return configured
+
+    # 3. Dynamic resolution from incoming HTTP request headers
+    if request:
+        custom_hdr = request.headers.get("x-customer-frontend-url")
+        if custom_hdr and not any(h in custom_hdr for h in ("localhost", "127.0.0.1")):
+            return custom_hdr.strip().rstrip("/")
+
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        if origin:
+            try:
+                parsed = urlparse(origin)
+                if parsed.hostname and parsed.hostname not in ("backend", "van_vibes_backend", "localhost", "127.0.0.1"):
+                    return f"{parsed.scheme or proto}://{parsed.hostname}:4000"
+            except Exception:
+                pass
+
+        raw_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        if raw_host:
+            hostname = raw_host.split(":")[0].strip()
+            if hostname and hostname not in ("backend", "van_vibes_backend", "localhost", "127.0.0.1"):
+                return f"{proto}://{hostname}:4000"
+
+    return configured or "http://localhost:4000"
+
+
+def _format_table(
+    t: Table,
+    active_session: Optional[DiningSessionResponse] = None,
+    request: Optional[Request] = None,
+    frontend_url: Optional[str] = None,
+) -> TableResponse:
+    base_url = resolve_customer_frontend_url(request, frontend_url)
+    scan_url = f"{base_url}/cafe/van-vibes/menu?table={t.id}&token={t.token}"
     return TableResponse(
         id=t.id,
         table_number=t.table_number,
@@ -47,6 +100,7 @@ def _format_table(t: Table, active_session: Optional[DiningSessionResponse] = No
 @router.post("", response_model=TableResponse, status_code=status.HTTP_201_CREATED)
 async def create_table(
     payload: CreateTableRequest,
+    request: Request,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -76,7 +130,7 @@ async def create_table(
                 chef_payload={"tableId": existing.id, "tableNumber": existing.table_number},
                 table_id=existing.id,
             )
-            return _format_table(existing)
+            return _format_table(existing, request=request)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -109,11 +163,11 @@ async def create_table(
         table_id=new_table.id,
     )
 
-    return _format_table(new_table)
+    return _format_table(new_table, request=request)
 
 
 @router.get("", response_model=List[TableResponse])
-def get_tables(db: Session = Depends(get_db)):
+def get_tables(request: Request, db: Session = Depends(get_db)):
     """List all cafe tables with status, scan URLs, and active dining session info."""
     tables = db.query(Table).filter(Table.is_active == True).order_by(Table.table_number.asc()).all()
     open_sessions = (
@@ -141,12 +195,12 @@ def get_tables(db: Session = Depends(get_db)):
                 payment_status="PENDING",
                 table_status=t.status,
             )
-        result.append(_format_table(t, active_session=s_resp))
+        result.append(_format_table(t, active_session=s_resp, request=request))
     return result
 
 
 @router.get("/{table_id}", response_model=TableResponse)
-def get_table(table_id: str, db: Session = Depends(get_db)):
+def get_table(table_id: str, request: Request, db: Session = Depends(get_db)):
     """Get single table details."""
     t = db.query(Table).filter(Table.id == table_id).first()
     if not t:
@@ -170,11 +224,11 @@ def get_table(table_id: str, db: Session = Depends(get_db)):
             payment_status="PENDING",
             table_status=t.status,
         )
-    return _format_table(t, active_session=s_resp)
+    return _format_table(t, active_session=s_resp, request=request)
 
 
 @router.post("/validate-qr", response_model=ValidateQRResponse)
-async def validate_table_qr(payload: ValidateQRRequest, db: Session = Depends(get_db)):
+async def validate_table_qr(payload: ValidateQRRequest, request: Request, db: Session = Depends(get_db)):
     """Public endpoint to validate table QR scan and token, joining or creating OPEN session."""
     table = db.query(Table).filter(Table.id == payload.table_id, Table.is_active == True).first()
     if not table:
@@ -210,7 +264,7 @@ async def validate_table_qr(payload: ValidateQRRequest, db: Session = Depends(ge
 
     return ValidateQRResponse(
         valid=True,
-        table=_format_table(table, active_session=session_resp),
+        table=_format_table(table, active_session=session_resp, request=request),
         dining_session=session_resp,
         is_new_session=is_new,
         message="QR token validated successfully",
@@ -221,6 +275,7 @@ async def validate_table_qr(payload: ValidateQRRequest, db: Session = Depends(ge
 async def update_table_status(
     table_id: str,
     payload: TableStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_chef_or_admin),
 ):
@@ -246,11 +301,16 @@ async def update_table_status(
     # Broadcast real-time table status update
     await ws_manager.notify_table_status_updated(table.id, table.status)
 
-    return _format_table(table)
+    return _format_table(table, request=request)
 
 
 @router.get("/{table_id}/qr")
-def generate_table_qr_code(table_id: str, db: Session = Depends(get_db)):
+def generate_table_qr_code(
+    table_id: str,
+    request: Request,
+    frontend_url: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     """
     BACKEND QR CODE GENERATOR.
     Dynamically generates high-res PNG QR code encoding the secure cafe menu URL.
@@ -263,7 +323,8 @@ def generate_table_qr_code(table_id: str, db: Session = Depends(get_db)):
             detail=f"Table '{table_id}' not found",
         )
 
-    target_url = f"{settings.CUSTOMER_FRONTEND_URL}/cafe/van-vibes/menu?table={table.id}&token={table.token}"
+    base_url = resolve_customer_frontend_url(request, frontend_url)
+    target_url = f"{base_url}/cafe/van-vibes/menu?table={table.id}&token={table.token}"
 
     qr = qrcode.QRCode(
         version=1,
@@ -290,7 +351,12 @@ def generate_table_qr_code(table_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{table_id}/standee", response_model=StandeeResponse)
-def get_table_standee_data(table_id: str, db: Session = Depends(get_db)):
+def get_table_standee_data(
+    table_id: str,
+    request: Request,
+    frontend_url: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     """Return complete standee metadata with Base64 QR code for instant standee printing."""
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
@@ -299,7 +365,8 @@ def get_table_standee_data(table_id: str, db: Session = Depends(get_db)):
             detail=f"Table '{table_id}' not found",
         )
 
-    target_url = f"{settings.CUSTOMER_FRONTEND_URL}/cafe/van-vibes/menu?table={table.id}&token={table.token}"
+    base_url = resolve_customer_frontend_url(request, frontend_url)
+    target_url = f"{base_url}/cafe/van-vibes/menu?table={table.id}&token={table.token}"
 
     qr = qrcode.QRCode(
         version=1,
@@ -324,6 +391,30 @@ def get_table_standee_data(table_id: str, db: Session = Depends(get_db)):
         scan_url=target_url,
         qr_image_url=b64_qr,
     )
+
+
+@router.get("/{table_id}/scan")
+def scan_table_redirect(
+    table_id: str,
+    request: Request,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Public dynamic redirect for table QR codes.
+    Redirects incoming mobile scanner to the dynamic customer frontend URL.
+    """
+    table = db.query(Table).filter(Table.id == table_id).first()
+    if not table:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table '{table_id}' not found",
+        )
+
+    base_url = resolve_customer_frontend_url(request)
+    target_token = token or table.token
+    target_url = f"{base_url}/cafe/van-vibes/menu?table={table.id}&token={target_token}"
+    return RedirectResponse(url=target_url, status_code=status.HTTP_302_FOUND)
 
 @router.delete("/{table_id}")
 async def delete_table(
