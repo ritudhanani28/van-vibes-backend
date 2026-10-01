@@ -6,22 +6,23 @@ from datetime import datetime, timezone
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models.category import Category
 from app.models.menu import MenuItem
 from app.models.settings import CafeSettings
 from app.models.table import Table
-from app.models.user import User
 
 
 def seed_database():
-    print("Cleaning database tables...")
+    print("Cleaning database tables (preserving users)...")
     Base.metadata.create_all(bind=engine)
 
-    # Delete existing data across all tables in reverse topological order, keeping alembic_version intact
+    # Delete existing data across all tables in reverse topological order,
+    # keeping users and alembic_version intact
     with engine.begin() as conn:
         for tbl in reversed(Base.metadata.sorted_tables):
+            if tbl.name == "users":
+                continue
             conn.execute(tbl.delete())
 
     db = SessionLocal()
@@ -43,32 +44,7 @@ def seed_database():
         db.add(settings_record)
         db.flush()
 
-        # 2. Staff Users (2: Admin & Chef)
-        print("Seeding Staff Users (2)...")
-        admin_user = User(
-            id="user-admin-01",
-            email="admin@vaanvibes.com",
-            name="Admin Manager",
-            password_hash=hash_password("admin123"),
-            role="ADMIN",
-            shift="All-Day",
-            assigned_station="Control Desk",
-            is_active=True,
-        )
-        chef_user = User(
-            id="user-chef-01",
-            email="chef@vaanvibes.com",
-            name="Head Chef Vikram",
-            password_hash=hash_password("chef123"),
-            role="CHEF",
-            shift="Morning",
-            assigned_station="Hot Kitchen",
-            is_active=True,
-        )
-        db.add_all([admin_user, chef_user])
-        db.flush()
-
-        # 3. Tables (12 Cafe Tables, all AVAILABLE)
+        # 2. Tables (12 Cafe Tables, all AVAILABLE)
         print("Seeding Tables (12)...")
         for i in range(1, 13):
             pad = f"{i:02d}"
@@ -87,14 +63,14 @@ def seed_database():
             db.add(t)
         db.flush()
 
-        # 4. Categories (19) & Menu Items (112) from seed_menu.json
+        # 3. Categories (19) & Menu Items (112) from seed_menu.json
         print("Seeding Categories (19) & Menu Items (112) from seed_menu.json...")
         json_path = os.path.join(os.path.dirname(__file__), "seed_menu.json")
         if os.path.exists(json_path):
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Insert categories (excluding 'all' which is a virtual filter)
+            # Insert categories (excluding "all" which is a virtual filter)
             cats = [c for c in data.get("categories", []) if c.get("id") != "all"]
             for idx, c in enumerate(cats):
                 cat_obj = Category(
