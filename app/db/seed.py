@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
+import app.db.base  # noqa: F401
 from app.db.session import Base, SessionLocal, engine
 from app.modules.menu.models import Category, MenuItem
 from app.modules.settings.models import CafeSettings
