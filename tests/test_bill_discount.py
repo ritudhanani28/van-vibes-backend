@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.models.menu import MenuItem
+from app.modules.menu.models import MenuItem
 from app.db.session import SessionLocal
 
 client = TestClient(app)

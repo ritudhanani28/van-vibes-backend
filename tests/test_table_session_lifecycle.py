@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.main import app
 from app.db.session import get_db
-from app.models.dining_session import DiningSession, SessionStatus
-from app.models.menu import MenuItem
-from app.models.order import Order, OrderStatus
-from app.models.table import Table
-from app.models.billing import BillingInvoice
+from app.modules.sessions.models import DiningSession, SessionStatus
+from app.modules.menu.models import MenuItem
+from app.modules.orders.models import Order, OrderStatus
+from app.modules.tables.models import Table
+from app.modules.sessions.models import BillingInvoice
 
 
 client = TestClient(app)

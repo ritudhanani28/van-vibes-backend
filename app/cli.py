@@ -11,16 +11,13 @@ if BASE_DIR not in sys.path:
 
 from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
-from app.models.user import User
-
-# Ensure all SQLAlchemy models are loaded into Base.metadata
-from app.models.billing import BillingInvoice
-from app.models.category import Category
-from app.models.dining_session import DiningSession
-from app.models.menu import MenuItem
-from app.models.order import Order, OrderItem
-from app.models.settings import CafeSettings
-from app.models.table import Table
+import app.db.base  # noqa: F401 - ensures all models are registered on Base.metadata
+from app.modules.accounts.models import User
+from app.modules.menu.models import Category, MenuItem
+from app.modules.orders.models import Order, OrderItem
+from app.modules.sessions.models import BillingInvoice, DiningSession
+from app.modules.settings.models import CafeSettings
+from app.modules.tables.models import Table
 
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

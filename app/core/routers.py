@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from app.api.v1 import api_router
 from app.core.config import settings
-from app.routes import root_router
+from app.core.root import router as root_router
 
 
 def setup_routers(app: FastAPI) -> None:

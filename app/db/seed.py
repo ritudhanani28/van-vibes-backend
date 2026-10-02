@@ -7,10 +7,9 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app.db.session import Base, SessionLocal, engine
-from app.models.category import Category
-from app.models.menu import MenuItem
-from app.models.settings import CafeSettings
-from app.models.table import Table
+from app.modules.menu.models import Category, MenuItem
+from app.modules.settings.models import CafeSettings
+from app.modules.tables.models import Table
 
 
 def seed_database():

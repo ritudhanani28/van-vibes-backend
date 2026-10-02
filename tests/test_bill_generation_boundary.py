@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.models.dining_session import DiningSession, SessionStatus
-from app.models.table import Table
-from app.models.menu import MenuItem
+from app.modules.sessions.models import DiningSession, SessionStatus
+from app.modules.tables.models import Table
+from app.modules.menu.models import MenuItem
 from app.db.session import get_db
 
 client = TestClient(app)

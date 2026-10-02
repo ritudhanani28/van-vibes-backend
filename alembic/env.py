@@ -25,7 +25,8 @@ database_logger = LoggerManager(folder_name="database")
 
 
 # Import all models to ensure they are registered with SQLAlchemy metadata
-import app.models  # noqa: F401
+# Models registered via app.db.base
+import app.db.base  # noqa: F401
 
 target_metadata = Base.metadata
 

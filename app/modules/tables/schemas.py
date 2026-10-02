@@ -1,0 +1,79 @@
+from typing import Any, List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CreateTableRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    table_number: int = Field(..., alias="tableNumber")
+    capacity: Optional[int] = 4
+
+
+class TableBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    id: str
+    table_number: int = Field(..., alias="tableNumber")
+    name: str
+    token: str
+    capacity: int = 4
+    status: str = "AVAILABLE"  # AVAILABLE, OCCUPIED, RESERVED
+    is_active: bool = True
+
+
+class TableResponse(TableBase):
+    qr_code_url: Optional[str] = Field(None, alias="qrCodeUrl")
+    active_session: Optional[Any] = Field(None, alias="activeSession")
+
+
+class TableStatusUpdate(BaseModel):
+    status: str  # AVAILABLE, OCCUPIED, RESERVED
+
+
+class ValidateQRRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    table_id: str = Field(..., alias="tableId")
+    token: str
+
+
+class ValidateQRResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    valid: bool
+    table: Optional[TableResponse] = None
+    dining_session: Optional[Any] = Field(None, alias="diningSession")
+    is_new_session: bool = Field(False, alias="isNewSession")
+    message: Optional[str] = None
+
+
+class StandeeResponse(BaseModel):
+    table_id: str
+    table_number: int
+    name: str
+    capacity: int
+    scan_url: str
+    qr_image_url: str
+
+# Backward compatibility aliases
+StandeeQrResponse = StandeeResponse
+TableCreate = CreateTableRequest
+TableUpdate = TableStatusUpdate
+VerifyTableTokenRequest = ValidateQRRequest
+
+
+class TableTransferRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    source_table_id: str = Field(..., alias="sourceTableId", description="Source table ID e.g. T01")
+    destination_table_id: str = Field(..., alias="destinationTableId", description="Destination table ID e.g. T02")
+
+
+class TableTransferResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    message: str
+    session_id: str = Field(..., alias="sessionId")
+    source_table: TableResponse = Field(..., alias="sourceTable")
+    destination_table: TableResponse = Field(..., alias="destinationTable")
+    order_ids: List[str] = Field(default_factory=list, alias="orderIds")
