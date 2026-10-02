@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.modules.orders.models import Customer, Order, OrderItem, OrderStatus
 
@@ -8,7 +8,7 @@ from app.modules.orders.models import Customer, Order, OrderItem, OrderStatus
 class OrderCRUD:
     @staticmethod
     def get_by_id(db: Session, order_id: str) -> Optional[Order]:
-        return db.query(Order).filter(Order.id == order_id).first()
+        return db.query(Order).options(joinedload(Order.dining_session), joinedload(Order.invoice)).filter(Order.id == order_id).first()
 
     @staticmethod
     def get_multi(
@@ -21,7 +21,7 @@ class OrderCRUD:
         end_dt: Optional[datetime] = None,
         limit: int = 100,
     ) -> List[Order]:
-        query = db.query(Order)
+        query = db.query(Order).options(joinedload(Order.dining_session), joinedload(Order.invoice))
         if status and status.upper() != "ALL":
             query = query.filter(Order.status == status.upper())
         if table_id:

@@ -6,6 +6,7 @@ from app.core.dependencies import get_current_user, require_admin
 from app.db.session import get_db
 from app.modules.accounts.models import User
 from app.modules.accounts.schemas import (
+    UpdateProfileRequest,
     ChangePasswordRequest,
     CreateChefRequest,
     LoginRequest,
@@ -65,6 +66,15 @@ def delete_chef(
 ) -> dict:
     """Delete a chef account (Admin only)."""
     return AccountService.delete_chef(db, chef_id, admin)
+
+
+def update_profile(
+    payload: UpdateProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
+    """Allow authenticated user to update their own profile (name, contact_number)."""
+    return AccountService.update_profile(db, current_user, payload)
 
 
 def change_password(

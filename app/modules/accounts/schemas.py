@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -27,9 +27,9 @@ class TokenResponse(BaseModel):
 
 
 class CreateChefRequest(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    contact_number: str
+    contact_number: str = Field(..., min_length=10, max_length=10, pattern=r"^\d{10}$")
     password: str
     role: Optional[str] = "CHEF"
     shift: Optional[str] = "Morning"
@@ -37,14 +37,19 @@ class CreateChefRequest(BaseModel):
 
 
 class UpdateChefRequest(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    contact_number: str
+    contact_number: str = Field(..., min_length=10, max_length=10, pattern=r"^\d{10}$")
     role: Optional[str] = "CHEF"
     password: Optional[str] = None
     shift: Optional[str] = None
     assigned_station: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    contact_number: Optional[str] = Field(None, min_length=10, max_length=10, pattern=r"^\d{10}$")
 
 
 class ChangePasswordRequest(BaseModel):

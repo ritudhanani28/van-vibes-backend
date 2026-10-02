@@ -9,6 +9,7 @@ from app.modules.orders.router import router as orders_router
 from app.modules.sessions.router import billing_router, dining_sessions_router
 from app.modules.settings.router import router as settings_router
 from app.modules.tables.router import router as tables_router
+from app.modules.export.router import router as export_router
 
 api_router = APIRouter()
 
@@ -26,3 +27,4 @@ api_router.include_router(billing_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(settings_router)
 api_router.include_router(ws_router)
+api_router.include_router(export_router)

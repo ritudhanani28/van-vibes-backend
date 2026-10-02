@@ -251,6 +251,7 @@ class SessionService:
 
         if tbl:
             await ws_manager.notify_table_status_updated(tbl.id, "AVAILABLE")
+            await ws_manager.notify_bill_generated(tbl.id, sess.id)
 
         return invoice, sess
 

@@ -235,6 +235,10 @@ class TableService:
     async def update_status(
         db: Session, table_id: str, payload: TableStatusUpdate, request: Optional[Request] = None
     ) -> TableResponse:
+        from app.modules.sessions.models import DiningSession, SessionStatus
+        from app.modules.sessions.service import SessionService
+        from app.modules.orders.models import OrderStatus
+
         valid_statuses = ["AVAILABLE", "OCCUPIED", "RESERVED"]
         if payload.status not in valid_statuses:
             raise HTTPException(
@@ -249,11 +253,9 @@ class TableService:
                 detail=f"Table '{table_id}' not found",
             )
 
-        table.status = payload.status
         now = datetime.now(timezone.utc)
 
         if payload.status == "AVAILABLE":
-            from app.modules.sessions.models import DiningSession, SessionStatus
             open_sess = (
                 db.query(DiningSession)
                 .filter(
@@ -263,11 +265,22 @@ class TableService:
                 .first()
             )
             if open_sess:
+                has_active_orders = any(
+                    o.status not in [OrderStatus.CANCELLED.value, OrderStatus.COMPLETED.value]
+                    for o in open_sess.orders
+                )
+                if has_active_orders:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Cannot mark table AVAILABLE while it has an active session with open orders. Please generate a bill or cancel the orders first.",
+                    )
                 open_sess.status = SessionStatus.CLOSED.value
                 open_sess.closed_at = now
                 open_sess.updated_at = now
+            table.status = "AVAILABLE"
+
         elif payload.status == "OCCUPIED":
-            from app.modules.sessions.service import SessionService
+            table.status = "OCCUPIED"
             open_sess = (
                 db.query(DiningSession)
                 .filter(
@@ -279,10 +292,14 @@ class TableService:
             if not open_sess:
                 await SessionService.get_or_create_active_session(db, table.id)
 
+        elif payload.status == "RESERVED":
+            table.status = "RESERVED"
+
+        table.updated_at = now
         db.commit()
         db.refresh(table)
         await ws_manager.notify_table_status_updated(table.id, table.status)
-        return format_table(table, request=request)
+        return TableService.get_table(db, table.id, request=request)
 
     @staticmethod
     def generate_qr_code(

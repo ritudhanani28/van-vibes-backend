@@ -7,6 +7,7 @@ from app.core.security import create_access_token, verify_password
 from app.modules.accounts import crud
 from app.modules.accounts.models import User
 from app.modules.accounts.schemas import (
+    UpdateProfileRequest,
     ChangePasswordRequest,
     CreateChefRequest,
     LoginRequest,
@@ -89,11 +90,11 @@ class AccountService:
                 detail=f"User with email '{clean_email}' already exists.",
             )
 
-        clean_digits = re.sub(r"\D", "", payload.contact_number)
-        if len(clean_digits) < 10 or len(clean_digits) > 15:
+        clean_contact = payload.contact_number.strip()
+        if not re.fullmatch(r"^\d{10}$", clean_contact):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Contact number must contain at least 10 digits.",
+                detail="Contact number must be exactly 10 numeric digits.",
             )
 
         validate_password_strength(payload.password)
@@ -118,11 +119,11 @@ class AccountService:
                     detail=f"User with email '{clean_email}' already exists.",
                 )
 
-        clean_digits = re.sub(r"\D", "", payload.contact_number)
-        if len(clean_digits) < 10 or len(clean_digits) > 15:
+        clean_contact = payload.contact_number.strip()
+        if not re.fullmatch(r"^\d{10}$", clean_contact):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Contact number must contain at least 10 digits.",
+                detail="Contact number must be exactly 10 numeric digits.",
             )
 
         clean_role = payload.role.upper().strip() if payload.role else "CHEF"
@@ -162,6 +163,27 @@ class AccountService:
         chef_name = chef.name
         crud.delete_chef(db, chef)
         return {"message": f"Chef {chef_name} deleted successfully", "id": chef_id}
+
+    @staticmethod
+    def update_profile(db: Session, current_user: User, payload: UpdateProfileRequest) -> UserResponse:
+        clean_name = payload.name.strip()
+        if len(clean_name) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Full Name must be at least 2 characters long.",
+            )
+
+        clean_contact = None
+        if payload.contact_number is not None:
+            clean_contact = payload.contact_number.strip()
+            if clean_contact and not re.fullmatch(r"^\d{10}$", clean_contact):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Contact number must be exactly 10 numeric digits.",
+                )
+
+        updated = crud.update_profile(db, current_user, clean_name, clean_contact)
+        return UserResponse.model_validate(updated)
 
     @staticmethod
     def change_password(db: Session, current_user: User, payload: ChangePasswordRequest) -> dict:

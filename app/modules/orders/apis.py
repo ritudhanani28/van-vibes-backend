@@ -20,15 +20,28 @@ from app.modules.sessions.schemas import BillReceiptResponse, GenerateBillReques
 
 def _format_order(order: Order, role: Optional[str] = None) -> Union[OrderResponse, ChefOrderResponse]:
     """Format order; strip prices if role is CHEF."""
+    sess_status = order.dining_session.status if order.dining_session else None
+    has_bill = bool(
+        (sess_status in ["BILL_GENERATED", "CLOSED"])
+        or (
+            order.dining_session
+            and getattr(order.dining_session, "invoices", None)
+            and any(getattr(inv, "bill_type", None) == "SESSION" for inv in order.dining_session.invoices)
+        )
+    )
     if role == "CHEF":
-        return ChefOrderResponse.model_validate(order)
-    return OrderResponse.model_validate(order)
+        obj = ChefOrderResponse.model_validate(order)
+    else:
+        obj = OrderResponse.model_validate(order)
+    obj.session_status = sess_status
+    obj.bill_generated = has_bill
+    return obj
 
 
 async def create_order_endpoint(payload: CreateOrderRequest, db: Session = Depends(get_db)):
     """Public customer order placement."""
     new_order = await OrderService.create_order(db, payload)
-    return OrderResponse.model_validate(new_order)
+    return _format_order(new_order)
 
 
 def list_orders_endpoint(

@@ -153,7 +153,7 @@ class MenuService:
                 detail=f"Menu item '{item_id}' not found",
             )
         updated = crud.update_menu_item_availability(db, item, payload.is_available)
-        await ws_manager.notify_menu_availability(item_id, payload.is_available)
+        await ws_manager.notify_menu_availability_changed(item_id, payload.is_available)
         return _format_menu_item(updated)
 
     @staticmethod

@@ -18,7 +18,7 @@ def test_admin_can_create_chef_account_and_chef_can_login():
     payload = {
         'name': 'Chef Sanjeev',
         'email': email,
-        'contact_number': '+91 9876543299',
+        'contact_number': '9876543299',
         'password': 'ChefPassword@123',
     }
     create_res = client.post('/api/v1/auth/chefs', json=payload, headers={'Authorization': f'Bearer {admin_token}'})
@@ -31,7 +31,7 @@ def test_admin_can_create_chef_account_and_chef_can_login():
         data = create_res.json()
         assert data['name'] == 'Chef Sanjeev'
         assert data['role'] == 'CHEF'
-        assert data['contact_number'] == '+91 9876543299'
+        assert data['contact_number'] == '9876543299'
         assert 'password' not in data
         assert 'password_hash' not in data
 

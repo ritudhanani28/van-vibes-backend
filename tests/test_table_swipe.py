@@ -16,6 +16,19 @@ def _get_admin_token():
 
 
 def test_table_swipe_transfer_flow():
+    from app.db.session import get_db
+    from app.modules.sessions.models import DiningSession
+    from app.modules.tables.models import Table
+
+    with next(get_db()) as db:
+        for tid in ['T01', 'T02', 'T03']:
+            for s in db.query(DiningSession).filter(DiningSession.table_id == tid).all():
+                s.status = 'CLOSED'
+            tbl = db.query(Table).filter(Table.id == tid).first()
+            if tbl:
+                tbl.status = 'AVAILABLE'
+        db.commit()
+
     token = _get_admin_token()
     headers = {"Authorization": f"Bearer {token}"}
 

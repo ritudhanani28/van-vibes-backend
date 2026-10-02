@@ -9,6 +9,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # Authentication
 router.post("/login", response_model=TokenResponse)(apis.login)
 router.get("/me", response_model=UserResponse)(apis.get_me)
+router.patch("/profile", response_model=UserResponse)(apis.update_profile)
+router.put("/me", response_model=UserResponse)(apis.update_profile)
 router.post("/change-password")(apis.change_password)
 
 # Chef & Staff Management (under /auth/chefs)

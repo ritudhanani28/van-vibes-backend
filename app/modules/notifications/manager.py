@@ -78,7 +78,7 @@ class ConnectionManager:
                     await ws.send_text(
                         json.dumps({"event": event_type, "data": chef_payload})
                     )
-                elif role == "TABLE" and table_id and identifier == table_id:
+                elif (role == "TABLE" or role == "GUEST") and (not table_id or identifier in [table_id, "anonymous"]):
                     await ws.send_text(
                         json.dumps({"event": event_type, "data": chef_payload})
                     )
@@ -236,12 +236,23 @@ class ConnectionManager:
             chef_payload=payload,
         )
 
+    notify_menu_availability = notify_menu_availability_changed
+
     async def notify_menu_item_deleted(self, item_id: str):
         payload = {"itemId": item_id, "id": item_id}
         await self.broadcast_event(
             event_type="MENU_ITEM_DELETED",
             admin_payload=payload,
             chef_payload=payload,
+        )
+
+    async def notify_bill_generated(self, table_id: str, session_id: str):
+        payload = {"tableId": table_id, "sessionId": session_id, "status": "BILL_GENERATED"}
+        await self.broadcast_event(
+            event_type="BILL_GENERATED",
+            admin_payload=payload,
+            chef_payload=payload,
+            table_id=table_id,
         )
 
 

@@ -74,3 +74,12 @@ def update_password(db: Session, user: User, new_password: str) -> None:
     user.password_hash = hash_password(new_password)
     db.commit()
     db.refresh(user)
+
+
+def update_profile(db: Session, user: User, name: str, contact_number: Optional[str]) -> User:
+    user.name = name.strip()
+    if contact_number is not None:
+        user.contact_number = contact_number.strip()
+    db.commit()
+    db.refresh(user)
+    return user

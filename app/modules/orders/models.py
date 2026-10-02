@@ -87,6 +87,20 @@ class Order(Base):
         "DiningSession", back_populates="orders"
     )
 
+    @property
+    def session_status(self) -> Optional[str]:
+        if self.dining_session:
+            return self.dining_session.status
+        return None
+
+    @property
+    def bill_generated(self) -> bool:
+        if self.dining_session and self.dining_session.status in ["BILL_GENERATED", "CLOSED"]:
+            return True
+        if self.dining_session and getattr(self.dining_session, "invoices", None):
+            return any(getattr(inv, "bill_type", None) == "SESSION" for inv in self.dining_session.invoices)
+        return False
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"

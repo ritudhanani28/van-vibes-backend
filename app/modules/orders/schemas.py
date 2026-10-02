@@ -102,6 +102,8 @@ class OrderResponse(BaseModel):
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
     total: float
+    session_status: Optional[str] = Field(None, alias="sessionStatus")
+    bill_generated: bool = Field(False, alias="billGenerated")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
     items: List[OrderItemResponse] = []
@@ -123,6 +125,8 @@ class ChefOrderResponse(BaseModel):
     customer_mobile: str = Field(..., alias="customerMobile")
     special_instructions: Optional[str] = Field(None, alias="specialInstructions")
     status: str
+    session_status: Optional[str] = Field(None, alias="sessionStatus")
+    bill_generated: bool = Field(False, alias="billGenerated")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
     items: List[ChefOrderItemResponse] = []
