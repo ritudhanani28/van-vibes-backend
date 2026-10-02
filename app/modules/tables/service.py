@@ -28,45 +28,100 @@ def resolve_customer_frontend_url(
     frontend_url: Optional[str] = None,
 ) -> str:
     """
-    Dynamically resolves customer-facing frontend URL (port 4000).
-    Guarantees production links & QR codes point to the real host/domain.
+    Dynamically resolves customer-facing frontend base URL.
+    Deployment-independent: supports localhost, local Wi-Fi LAN IP (e.g. 192.168.x.x),
+    public server IPs, custom domains, and reverse proxies (Nginx/Caddy/Cloudflare).
     """
-    # 1. Direct explicit param override
+    from app.core.network import detect_lan_ipv4, is_loopback
+
+    # 1. Direct explicit param override (from Management Portal, Standee generator, or API query)
     if frontend_url and frontend_url.strip():
         clean_url = frontend_url.strip().rstrip("/")
-        if not any(h in clean_url for h in ("localhost", "127.0.0.1")):
+        if clean_url.startswith("http://") or clean_url.startswith("https://"):
             return clean_url
 
-    # 2. Configured production setting (if not localhost)
-    configured = (settings.CUSTOMER_FRONTEND_URL or "").strip().rstrip("/")
-    if configured and not any(h in configured for h in ("localhost", "127.0.0.1")):
-        return configured
-
-    # 3. Dynamic resolution from incoming HTTP request headers
+    # 2. Custom header passed by reverse proxy or client (e.g. X-Customer-Frontend-Url)
     if request:
         custom_hdr = request.headers.get("x-customer-frontend-url")
-        if custom_hdr and not any(h in custom_hdr for h in ("localhost", "127.0.0.1")):
-            return custom_hdr.strip().rstrip("/")
+        if custom_hdr and custom_hdr.strip():
+            clean_hdr = custom_hdr.strip().rstrip("/")
+            if clean_hdr.startswith("http://") or clean_hdr.startswith("https://"):
+                return clean_hdr
 
+    # 3. Explicitly configured environment variable (if non-empty)
+    configured = (settings.CUSTOMER_FRONTEND_URL or "").strip().rstrip("/")
+    if configured and (configured.startswith("http://") or configured.startswith("https://")):
+        return configured
+
+    # 4. Dynamic resolution from incoming HTTP request (headers & origin)
+    if request:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
 
+        # Check Origin or Referer header (often present in AJAX requests from frontend/management)
         origin = request.headers.get("origin") or request.headers.get("referer")
         if origin:
             try:
                 parsed = urlparse(origin)
-                if parsed.hostname and parsed.hostname not in ("backend", "van_vibes_backend", "localhost", "127.0.0.1"):
-                    return f"{parsed.scheme or proto}://{parsed.hostname}:4000"
+                hostname = parsed.hostname
+                if hostname and hostname not in ("backend", "van_vibes_backend"):
+                    scheme = parsed.scheme or proto
+                    port_str = f":{parsed.port}" if parsed.port and parsed.port not in (80, 443) else ""
+                    
+                    if is_loopback(hostname):
+                        lan_ip = detect_lan_ipv4()
+                        if lan_ip:
+                            customer_port = ":4000" if parsed.port in (4000, 4001, 9000) else ":3000"
+                            return f"http://{lan_ip}{customer_port}"
+                        return f"{scheme}://localhost{port_str or ':4000'}"
+                    
+                    # Remote domain or public IP:
+                    if parsed.port == 4001:
+                        return f"{scheme}://{hostname}:4000"
+                    elif parsed.port == 3001:
+                        return f"{scheme}://{hostname}:3000"
+                    elif parsed.port in (80, 443) or not parsed.port:
+                        return f"{scheme}://{hostname}"
+                    else:
+                        return f"{scheme}://{hostname}{port_str}"
             except Exception:
                 pass
 
+        # Check Forwarded Host or Host header
         raw_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
         if raw_host:
-            hostname = raw_host.split(":")[0].strip()
-            if hostname and hostname not in ("backend", "van_vibes_backend", "localhost", "127.0.0.1"):
-                return f"{proto}://{hostname}:4000"
+            try:
+                parts = raw_host.split(":")
+                hostname = parts[0].strip()
+                port = int(parts[1]) if len(parts) > 1 else None
 
-    return configured or "http://localhost:4000"
+                if hostname and hostname not in ("backend", "van_vibes_backend"):
+                    if is_loopback(hostname):
+                        lan_ip = detect_lan_ipv4()
+                        if lan_ip:
+                            customer_port = ":4000" if port in (4000, 4001, 9000) else ":3000"
+                            return f"http://{lan_ip}{customer_port}"
+                        return f"{proto}://localhost{f':{port}' if port else ':4000'}"
 
+                    # Remote host / domain
+                    if port == 4001:
+                        return f"{proto}://{hostname}:4000"
+                    elif port == 3001:
+                        return f"{proto}://{hostname}:3000"
+                    elif port in (80, 443, 9000) or not port:
+                        if port == 9000 and any(c.isdigit() for c in hostname.split(".")):
+                            return f"{proto}://{hostname}:4000"
+                        return f"{proto}://{hostname}"
+                    else:
+                        return f"{proto}://{hostname}:{port}"
+            except Exception:
+                pass
+
+    # 5. Fallback for standalone/local startup: detect active LAN IP
+    lan_ip = detect_lan_ipv4()
+    if lan_ip:
+        return f"http://{lan_ip}:4000"
+
+    return "http://localhost:4000"
 
 def format_table(
     t: Table,
@@ -91,7 +146,7 @@ def format_table(
 
 class TableService:
     @staticmethod
-    def list_tables(db: Session, request: Optional[Request] = None) -> List[TableResponse]:
+    def list_tables(db: Session, request: Optional[Request] = None, frontend_url: Optional[str] = None) -> List[TableResponse]:
         from app.modules.sessions.models import DiningSession, SessionStatus
         from app.modules.sessions.schemas import DiningSessionResponse
 
@@ -121,11 +176,11 @@ class TableService:
                     payment_status="PENDING",
                     table_status=t.status,
                 )
-            result.append(format_table(t, active_session=s_resp, request=request))
+            result.append(format_table(t, active_session=s_resp, request=request, frontend_url=frontend_url))
         return result
 
     @staticmethod
-    def get_table(db: Session, table_id: str, request: Optional[Request] = None) -> TableResponse:
+    def get_table(db: Session, table_id: str, request: Optional[Request] = None, frontend_url: Optional[str] = None) -> TableResponse:
         from app.modules.sessions.models import DiningSession, SessionStatus
         from app.modules.sessions.schemas import DiningSessionResponse
 
@@ -151,7 +206,7 @@ class TableService:
                 payment_status="PENDING",
                 table_status=t.status,
             )
-        return format_table(t, active_session=s_resp, request=request)
+        return format_table(t, active_session=s_resp, request=request, frontend_url=frontend_url)
 
     @staticmethod
     async def create_table(db: Session, payload: CreateTableRequest, request: Optional[Request] = None) -> TableResponse:

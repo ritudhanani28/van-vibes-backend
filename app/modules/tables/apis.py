@@ -21,19 +21,21 @@ from app.modules.tables.service import TableService, format_table
 
 def get_tables(
     request: Request,
+    frontend_url: Optional[str] = None,
     db: Session = Depends(get_db),
 ) -> List[TableResponse]:
     """List all cafe tables with status, scan URLs, and active dining session info."""
-    return TableService.list_tables(db, request=request)
+    return TableService.list_tables(db, request=request, frontend_url=frontend_url)
 
 
 def get_table(
     table_id: str,
     request: Request,
+    frontend_url: Optional[str] = None,
     db: Session = Depends(get_db),
 ) -> TableResponse:
     """Get single table details."""
-    return TableService.get_table(db, table_id, request=request)
+    return TableService.get_table(db, table_id, request=request, frontend_url=frontend_url)
 
 
 async def create_table(

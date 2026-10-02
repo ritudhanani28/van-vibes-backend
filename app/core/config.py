@@ -1,3 +1,4 @@
+from typing import Optional
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,8 +45,8 @@ class Settings(BaseSettings):
     CAFE_SECRET_KEY: str = "vv_cafe_standee_hmac_secret_2026"
 
     # Frontend URLs
-    CUSTOMER_FRONTEND_URL: str = "http://localhost:4000"
-    MANAGEMENT_FRONTEND_URL: str = "http://localhost:4001"
+    CUSTOMER_FRONTEND_URL: Optional[str] = None
+    MANAGEMENT_FRONTEND_URL: Optional[str] = None
 
     @property
     def allowed_hosts_list(self) -> list[str]:
@@ -57,12 +58,14 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         if not self.BACKEND_CORS_ORIGINS or self.BACKEND_CORS_ORIGINS == "*":
             return [
+                "http://localhost:3000",
+                "http://localhost:3001",
                 "http://localhost:4000",
                 "http://localhost:4001",
-                "http://localhost:4000",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:3001",
                 "http://127.0.0.1:4000",
                 "http://127.0.0.1:4001",
-                "http://127.0.0.1:4000",
                 "*",
             ]
         return [i.strip() for i in self.BACKEND_CORS_ORIGINS.split(",") if i.strip()]
