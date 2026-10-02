@@ -64,6 +64,7 @@ class Order(Base):
     discount_percentage: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     discount_amount: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     extra_charge: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    round_off: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     total: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(

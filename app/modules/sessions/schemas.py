@@ -23,14 +23,15 @@ class InvoiceResponse(BaseModel):
     table_number: Optional[int] = Field(None, alias="tableNumber")
     customer_name: Optional[str] = Field(None, alias="customerName")
     subtotal: float
-    cgst_rate: float = Field(0.025, alias="cgstRate")
-    cgst_amount: float = Field(..., alias="cgstAmount")
-    sgst_rate: float = Field(0.025, alias="sgstRate")
-    sgst_amount: float = Field(..., alias="sgstAmount")
-    tax_amount: float = Field(..., alias="taxAmount")
+    cgst_rate: float = Field(0.0, alias="cgstRate")
+    cgst_amount: float = Field(0.0, alias="cgstAmount")
+    sgst_rate: float = Field(0.0, alias="sgstRate")
+    sgst_amount: float = Field(0.0, alias="sgstAmount")
+    tax_amount: float = Field(0.0, alias="taxAmount")
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
     extra_charge: float = Field(0.0, alias="extraCharge")
+    round_off: float = Field(0.0, alias="roundOff")
     total: float
     payment_method: str = Field("CASH", alias="paymentMethod")
     payment_status: str = Field("PENDING", alias="paymentStatus")
@@ -67,12 +68,14 @@ class BillReceiptResponse(BaseModel):
     special_instructions: Optional[str] = Field(None, alias="specialInstructions")
     items: List[BillReceiptItem]
     subtotal: float
-    cgst: float
-    sgst: float
-    tax_amount: float = Field(..., alias="taxAmount")
+    cgst: float = 0.0
+    sgst: float = 0.0
+    tax_amount: float = Field(0.0, alias="taxAmount")
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
     extra_charge: float = Field(0.0, alias="extraCharge")
+    amount_after_adjustments: Optional[float] = Field(0.0, alias="amountAfterAdjustments")
+    round_off: float = Field(0.0, alias="roundOff")
     total: float
     payment_status: str = Field(..., alias="paymentStatus")
     created_at: str = Field(..., alias="createdAt")
@@ -105,13 +108,17 @@ class DiningSessionDetailResponse(DiningSessionResponse):
     tax: float = 0.0
     discount_percentage: float = Field(0.0, alias="discountPercentage")
     discount_amount: float = Field(0.0, alias="discountAmount")
+    extra_charge: float = Field(0.0, alias="extraCharge")
+    amount_after_adjustments: float = Field(0.0, alias="amountAfterAdjustments")
+    round_off: float = Field(0.0, alias="roundOff")
     total: float = 0.0
 
 
 class GenerateSessionBillRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    discount_percentage: Optional[float] = Field(0.0, alias="discountPercentage", ge=0.0, le=100.0)
+    discount_percentage: Optional[float] = Field(0.0, alias="discountPercentage")
+    extra_charge: Optional[float] = Field(0.0, alias="extraCharge")
 
 
 class SettleSessionBillRequest(BaseModel):

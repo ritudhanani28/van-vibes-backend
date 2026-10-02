@@ -18,7 +18,7 @@ from app.modules.sessions.schemas import (
     InvoiceResponse,
     SettlePaymentRequest,
 )
-from app.modules.sessions.service import BillingService, SessionService
+from app.modules.sessions.service import BillingService, SessionService, calculate_bill_totals
 from app.modules.tables.models import Table
 from app.modules.notifications.manager import ws_manager
 
@@ -115,31 +115,40 @@ def get_dining_session_detail_endpoint(
 
     invoice_data = None
     inv = next((i for i in s.invoices if i.bill_type == "SESSION"), None)
-    disc_pct = 0.0
-    disc_amt = 0.0
-    tax_amt = round(subtotal * 0.05, 2)
-    final_total = round(subtotal + tax_amt, 2)
     payment_st = "PENDING"
 
     if inv:
         disc_pct = inv.discount_percentage
         disc_amt = inv.discount_amount
-        tax_amt = inv.tax_amount
+        extra_chg = inv.extra_charge
+        round_off = getattr(inv, "round_off", 0.0)
         final_total = inv.total
+        amount_after_adjustments = round(inv.subtotal - disc_amt + extra_chg, 2)
         payment_st = inv.payment_status
         invoice_data = {
             "id": inv.id,
             "invoiceNumber": inv.invoice_number,
             "subtotal": inv.subtotal,
-            "taxAmount": inv.tax_amount,
+            "taxAmount": 0.0,
             "discountPercentage": inv.discount_percentage,
             "discountAmount": inv.discount_amount,
+            "extraCharge": inv.extra_charge,
+            "amountAfterAdjustments": amount_after_adjustments,
+            "roundOff": round_off,
             "total": inv.total,
             "paymentMethod": inv.payment_method,
             "paymentStatus": inv.payment_status,
             "settledAt": inv.settled_at.isoformat() if inv.settled_at else None,
             "createdAt": inv.created_at.isoformat(),
         }
+    else:
+        calc = calculate_bill_totals(subtotal, 0.0, 0.0)
+        disc_pct = 0.0
+        disc_amt = 0.0
+        extra_chg = 0.0
+        amount_after_adjustments = calc["amount_after_adjustments"]
+        round_off = calc["round_off"]
+        final_total = calc["total"]
 
     tbl = db.query(Table).filter(Table.id == s.table_id).first()
 
@@ -158,9 +167,12 @@ def get_dining_session_detail_endpoint(
         orders=orders_data,
         invoice=invoice_data,
         subtotal=round(subtotal, 2),
-        tax=round(tax_amt, 2),
+        tax=0.0,
         discount_percentage=disc_pct,
         discount_amount=disc_amt,
+        extra_charge=extra_chg,
+        amount_after_adjustments=amount_after_adjustments,
+        round_off=round_off,
         total=final_total,
     )
 
@@ -204,9 +216,11 @@ def get_billing_ledger_endpoint(
                 cgst_amount=inv.cgst_amount,
                 sgst_rate=inv.sgst_rate,
                 sgst_amount=inv.sgst_amount,
-                tax_amount=inv.tax_amount,
+                tax_amount=0.0,
                 discount_percentage=inv.discount_percentage,
                 discount_amount=inv.discount_amount,
+                extra_charge=getattr(inv, "extra_charge", 0.0),
+                round_off=getattr(inv, "round_off", 0.0),
                 total=inv.total,
                 payment_method=inv.payment_method,
                 payment_status=inv.payment_status,
@@ -274,10 +288,11 @@ async def settle_session_bill_endpoint(
         cgst_amount=invoice.cgst_amount,
         sgst_rate=invoice.sgst_rate,
         sgst_amount=invoice.sgst_amount,
-        tax_amount=invoice.tax_amount,
+        tax_amount=0.0,
         discount_percentage=invoice.discount_percentage,
         discount_amount=invoice.discount_amount,
         extra_charge=invoice.extra_charge,
+        round_off=getattr(invoice, "round_off", 0.0),
         total=invoice.total,
         payment_method=invoice.payment_method,
         payment_status=invoice.payment_status,
@@ -343,9 +358,11 @@ def get_pending_invoices_endpoint(
                 cgst_amount=inv.cgst_amount,
                 sgst_rate=inv.sgst_rate,
                 sgst_amount=inv.sgst_amount,
-                tax_amount=inv.tax_amount,
+                tax_amount=0.0,
                 discount_percentage=inv.discount_percentage,
                 discount_amount=inv.discount_amount,
+                extra_charge=getattr(inv, "extra_charge", 0.0),
+                round_off=getattr(inv, "round_off", 0.0),
                 total=inv.total,
                 payment_method=inv.payment_method,
                 payment_status=inv.payment_status,
@@ -381,12 +398,14 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
             )
         )
 
-    tax_amt = order.tax
-    cgst = round(tax_amt / 2, 2)
-    sgst = round(tax_amt - cgst, 2)
+    tax_amt = 0.0
+    cgst = 0.0
+    sgst = 0.0
     disc_pct = invoice.discount_percentage if invoice else (getattr(order, "discount_percentage", 0.0) or 0.0)
     disc_amt = invoice.discount_amount if invoice else (getattr(order, "discount_amount", 0.0) or 0.0)
     extra_chg = invoice.extra_charge if invoice else (getattr(order, "extra_charge", 0.0) or 0.0)
+    round_off = getattr(invoice, "round_off", 0.0) if invoice else getattr(order, "round_off", 0.0)
+    amount_after_adjustments = round(order.subtotal - disc_amt + extra_chg, 2)
 
     return BillReceiptResponse(
         bill_number=bill_number,
@@ -397,12 +416,14 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
         special_instructions=order.special_instructions,
         items=items,
         subtotal=order.subtotal,
-        cgst=cgst,
-        sgst=sgst,
-        tax_amount=tax_amt,
+        cgst=0.0,
+        sgst=0.0,
+        tax_amount=0.0,
         discount_percentage=disc_pct,
         discount_amount=disc_amt,
         extra_charge=extra_chg,
+        amount_after_adjustments=amount_after_adjustments,
+        round_off=round_off,
         total=order.total,
         payment_status=order.payment_status,
         created_at=order.created_at.isoformat(),

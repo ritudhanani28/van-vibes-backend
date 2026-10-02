@@ -74,6 +74,7 @@ class BillingInvoice(Base):
     discount_percentage: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     discount_amount: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     extra_charge: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    round_off: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     total: Mapped[float] = mapped_column(Float, nullable=False)
     payment_method: Mapped[str] = mapped_column(String(50), default="CASH", nullable=False)
     payment_status: Mapped[str] = mapped_column(String(50), default="PENDING", nullable=False)

@@ -1,3 +1,4 @@
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
@@ -16,6 +17,41 @@ from app.modules.sessions.schemas import (
 )
 from app.modules.tables.models import Table
 from app.modules.notifications.manager import ws_manager
+
+
+
+def calculate_bill_totals(subtotal: float, discount_pct: float = 0.0, extra_charge: float = 0.0) -> dict:
+    """Authoritative financial calculation engine for bills.
+    
+    Formula:
+    Subtotal = sum of all line item totals
+    Discount Amount = Subtotal * Discount Percentage / 100
+    Amount After Adjustments (Preliminary Total) = Subtotal - Discount Amount + Extra Charges
+    Grand Total = Round(Preliminary Total) to nearest whole rupee using ROUND_HALF_UP
+    Round Off = Grand Total - Preliminary Total
+    Tax = 0.0 (unwanted tax removed)
+    """
+    sub = Decimal(str(round(subtotal, 2)))
+    disc_p = Decimal(str(round(max(0.0, min(100.0, float(discount_pct or 0.0))), 2)))
+    extra = Decimal(str(round(max(0.0, float(extra_charge or 0.0)), 2)))
+
+    disc_amt = (sub * disc_p / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    preliminary_total = (sub - disc_amt + extra).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    grand_total = max(Decimal("0.0"), preliminary_total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    round_off = (grand_total - preliminary_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    return {
+        "subtotal": float(sub),
+        "discount_percentage": float(disc_p),
+        "discount_amount": float(disc_amt),
+        "extra_charge": float(extra),
+        "amount_after_adjustments": float(preliminary_total),
+        "round_off": float(round_off),
+        "total": float(grand_total),
+        "tax": 0.0,
+        "cgst": 0.0,
+        "sgst": 0.0,
+    }
 
 
 class SessionService:
@@ -132,15 +168,27 @@ class SessionService:
                 detail="All orders in this session have been cancelled.",
             )
 
+        if discount_percentage is not None and (discount_percentage < 0.0 or discount_percentage > 100.0):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Discount percentage must be between 0 and 100%.",
+            )
+        if extra_charge is not None and extra_charge < 0.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Extra charge cannot be negative.",
+            )
+
         subtotal = round(sum(o.subtotal for o in valid_orders), 2)
+        calc = calculate_bill_totals(subtotal, discount_percentage, extra_charge)
         tax = 0.0
         cgst_amt = 0.0
         sgst_amt = 0.0
-
-        extra_chg = max(0.0, float(extra_charge or 0.0))
-        discount_pct = max(0.0, min(100.0, float(discount_percentage or 0.0)))
-        discount_amt = round(subtotal * (discount_pct / 100.0), 2)
-        total = round(max(0.0, subtotal - discount_amt + extra_chg), 2)
+        extra_chg = calc["extra_charge"]
+        discount_pct = calc["discount_percentage"]
+        discount_amt = calc["discount_amount"]
+        round_off = calc["round_off"]
+        total = calc["total"]
 
         now = datetime.now(timezone.utc)
 
@@ -166,6 +214,7 @@ class SessionService:
                 discount_percentage=discount_pct,
                 discount_amount=discount_amt,
                 extra_charge=extra_chg,
+                round_off=round_off,
                 total=total,
                 payment_method="CASH",
                 payment_status="PENDING",
@@ -180,6 +229,7 @@ class SessionService:
             invoice.discount_percentage = discount_pct
             invoice.discount_amount = discount_amt
             invoice.extra_charge = extra_chg
+            invoice.round_off = round_off
             invoice.total = total
             invoice.bill_type = "SESSION"
 
@@ -426,7 +476,8 @@ class BillingService:
         items_map = {}
         for o in valid_orders:
             for it in o.items:
-                key = it.name
+                # Group by (name, unit_price) so customized variants with different prices remain separate
+                key = (it.name, round(it.unit_price, 2))
                 if key in items_map:
                     items_map[key]["quantity"] += it.quantity
                     items_map[key]["total_price"] = round(items_map[key]["total_price"] + it.item_total, 2)
@@ -434,8 +485,9 @@ class BillingService:
                     items_map[key] = {
                         "name": it.name,
                         "quantity": it.quantity,
-                        "unit_price": it.unit_price,
-                        "total_price": it.item_total,
+                        "unit_price": round(it.unit_price, 2),
+                        "total_price": round(it.item_total, 2),
+                        "notes": it.special_instructions,
                     }
 
         receipt_items = [
@@ -444,19 +496,30 @@ class BillingService:
                 quantity=v["quantity"],
                 unit_price=v["unit_price"],
                 total_price=v["total_price"],
+                notes=v.get("notes"),
             )
             for v in items_map.values()
         ]
 
-        subtotal = round(sum(o.subtotal for o in valid_orders), 2)
-        tax = round(subtotal * 0.05, 2)
-        cgst = round(tax / 2, 2)
-        sgst = round(tax - cgst, 2)
+        subtotal = round(sum(it.total_price for it in receipt_items), 2)
         session_inv = invoice if (invoice and invoice.bill_type == "SESSION") else None
         disc_pct = session_inv.discount_percentage if session_inv else 0.0
-        disc_amt = session_inv.discount_amount if session_inv else round(subtotal * (disc_pct / 100.0), 2)
         extra_chg = session_inv.extra_charge if session_inv else 0.0
-        total = session_inv.total if session_inv else round(max(0.0, subtotal + tax - disc_amt + extra_chg), 2)
+
+        calc = calculate_bill_totals(subtotal, disc_pct, extra_chg)
+        if session_inv:
+            disc_amt = session_inv.discount_amount
+            extra_chg = session_inv.extra_charge
+            round_off = getattr(session_inv, "round_off", 0.0) or calc["round_off"]
+            total = session_inv.total
+            amount_after_adjustments = round(subtotal - disc_amt + extra_chg, 2)
+        else:
+            disc_amt = calc["discount_amount"]
+            extra_chg = calc["extra_charge"]
+            amount_after_adjustments = calc["amount_after_adjustments"]
+            round_off = calc["round_off"]
+            total = calc["total"]
+
         pay_st = session_inv.payment_status if session_inv else ("PAID" if session.status == SessionStatus.CLOSED.value else "PENDING")
         inv_num = session_inv.invoice_number if session_inv else f"BILL-{session.id}"
         created_str = (session_inv.created_at if session_inv else session.created_at).strftime("%d %b %Y, %I:%M %p")
@@ -475,12 +538,14 @@ class BillingService:
             special_instructions=None,
             items=receipt_items,
             subtotal=subtotal,
-            cgst=cgst,
-            sgst=sgst,
-            tax_amount=tax,
+            cgst=0.0,
+            sgst=0.0,
+            tax_amount=0.0,
             discount_percentage=disc_pct,
             discount_amount=disc_amt,
             extra_charge=extra_chg,
+            amount_after_adjustments=amount_after_adjustments,
+            round_off=round_off,
             total=total,
             payment_status=pay_st,
             created_at=created_str,
@@ -523,8 +588,11 @@ class BillingService:
                 detail="Discount percentage must be between 0 and 100%.",
             )
 
-        disc_amt = round(subtotal * (disc_pct / 100.0), 2)
-        final_total = max(0.0, round(subtotal - disc_amt + extra_chg, 2))
+        calc = calculate_bill_totals(subtotal, disc_pct, extra_chg)
+        disc_amt = calc["discount_amount"]
+        round_off = calc["round_off"]
+        final_total = calc["total"]
+        amount_after_adjustments = calc["amount_after_adjustments"]
 
         invoice = db.query(BillingInvoice).filter(BillingInvoice.order_id == order_id).first()
         if not invoice:
@@ -533,13 +601,14 @@ class BillingService:
                 invoice_number=f"INV-2026-{order.id}",
                 subtotal=subtotal,
                 cgst_rate=0.0,
-                cgst_amount=cgst,
+                cgst_amount=0.0,
                 sgst_rate=0.0,
-                sgst_amount=sgst,
-                tax_amount=tax,
+                sgst_amount=0.0,
+                tax_amount=0.0,
                 discount_percentage=disc_pct,
                 discount_amount=disc_amt,
                 extra_charge=extra_chg,
+                round_off=round_off,
                 total=final_total,
                 payment_method="CASH",
                 payment_status="PENDING",
@@ -548,19 +617,21 @@ class BillingService:
             db.add(invoice)
         else:
             invoice.subtotal = subtotal
-            invoice.cgst_amount = cgst
-            invoice.sgst_amount = sgst
-            invoice.tax_amount = tax
+            invoice.cgst_amount = 0.0
+            invoice.sgst_amount = 0.0
+            invoice.tax_amount = 0.0
             invoice.discount_percentage = disc_pct
             invoice.discount_amount = disc_amt
             invoice.extra_charge = extra_chg
+            invoice.round_off = round_off
             invoice.total = final_total
 
         order.subtotal = subtotal
-        order.tax = tax
+        order.tax = 0.0
         order.discount_percentage = disc_pct
         order.discount_amount = disc_amt
         order.extra_charge = extra_chg
+        order.round_off = round_off
         order.total = final_total
         order.updated_at = datetime.now(timezone.utc)
 
@@ -605,12 +676,14 @@ class BillingService:
             special_instructions=order.special_instructions,
             items=items,
             subtotal=subtotal,
-            cgst=cgst,
-            sgst=sgst,
-            tax_amount=tax,
+            cgst=0.0,
+            sgst=0.0,
+            tax_amount=0.0,
             discount_percentage=disc_pct,
             discount_amount=disc_amt,
             extra_charge=extra_chg,
+            amount_after_adjustments=amount_after_adjustments,
+            round_off=round_off,
             total=final_total,
             payment_status=order.payment_status,
             created_at=order.created_at.isoformat(),
@@ -716,6 +789,8 @@ class BillingService:
             tax_amount=invoice.tax_amount,
             discount_percentage=invoice.discount_percentage,
             discount_amount=invoice.discount_amount,
+            extra_charge=getattr(invoice, "extra_charge", 0.0),
+            round_off=getattr(invoice, "round_off", 0.0),
             total=invoice.total,
             payment_method=invoice.payment_method,
             payment_status=invoice.payment_status,
