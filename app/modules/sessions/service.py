@@ -12,6 +12,8 @@ from app.modules.sessions.schemas import (
     BillReceiptItem,
     BillReceiptResponse,
     GenerateBillRequest,
+    IncompleteItemDetail,
+    IncompleteOrderItemResponse,
     InvoiceResponse,
     SettlePaymentRequest,
 )
@@ -142,7 +144,10 @@ class SessionService:
         Transitions session to BILL_GENERATED.
         IMMEDIATELY RELEASES PHYSICAL TABLE TO AVAILABLE!
         """
-        sess = SessionCRUD.get_by_id(db, session_id)
+        query = db.query(DiningSession).filter(DiningSession.id == session_id)
+        if db.bind and db.bind.dialect.name != "sqlite":
+            query = query.with_for_update()
+        sess = query.first()
         if not sess:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -166,6 +171,37 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="All orders in this session have been cancelled.",
+            )
+
+        # VALIDATION: Every order in active session must be COMPLETED or SERVED
+        COMPLETED_STATUSES = {OrderStatus.COMPLETED.value, OrderStatus.SERVED.value}
+        incomplete_orders = [o for o in valid_orders if o.status not in COMPLETED_STATUSES]
+        if incomplete_orders:
+            table_label = f"Table {sess.table_number}" if sess.table_number else "this table"
+            detail_payload = {
+                "code": "SESSION_ORDERS_INCOMPLETE",
+                "message": f"Some orders for {table_label} have not been marked as completed/served yet. Please verify that all items have been served to the customer before generating the final bill.",
+                "table_number": sess.table_number,
+                "incomplete_orders": [
+                    {
+                        "order_id": o.id,
+                        "order_number": o.id,
+                        "table_number": sess.table_number or (o.table_number or 0),
+                        "status": o.status,
+                        "items": [
+                            {
+                                "name": oi.name,
+                                "quantity": oi.quantity,
+                            }
+                            for oi in o.items
+                        ],
+                    }
+                    for o in incomplete_orders
+                ],
+            }
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=detail_payload,
             )
 
         if discount_percentage is not None and (discount_percentage < 0.0 or discount_percentage > 100.0):
@@ -528,6 +564,23 @@ class BillingService:
         cust_name = valid_orders[0].customer_name if valid_orders else "Dining Guests"
         cust_mobile = valid_orders[0].customer_mobile if valid_orders else "--"
 
+        COMPLETED_STATUSES = {OrderStatus.COMPLETED.value, OrderStatus.SERVED.value}
+        incomplete_order_list = [
+            IncompleteOrderItemResponse(
+                order_id=o.id,
+                order_number=o.id,
+                table_number=session.table_number or (o.table_number or 0),
+                status=o.status,
+                items=[
+                    IncompleteItemDetail(name=oi.name, quantity=oi.quantity)
+                    for oi in o.items
+                ],
+            )
+            for o in valid_orders
+            if o.status not in COMPLETED_STATUSES
+        ]
+        has_incomplete = len(incomplete_order_list) > 0
+
         return BillReceiptResponse(
             bill_number=inv_num,
             order_id=valid_orders[0].id if valid_orders else session.id,
@@ -552,6 +605,8 @@ class BillingService:
             created_at=created_str,
             session_status=session.status,
             table_status=session.table.status if session.table else None,
+            has_incomplete_orders=has_incomplete,
+            incomplete_orders=incomplete_order_list,
         )
 
     @classmethod
@@ -566,6 +621,69 @@ class BillingService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Order '{order_id}' not found",
+            )
+
+        COMPLETED_STATUSES = {OrderStatus.COMPLETED.value, OrderStatus.SERVED.value}
+        if order.dining_session_id:
+            query = db.query(DiningSession).filter(DiningSession.id == order.dining_session_id)
+            if db.bind and db.bind.dialect.name != "sqlite":
+                query = query.with_for_update()
+            sess = query.first()
+            if sess:
+                valid_orders = [o for o in sess.orders if o.status != OrderStatus.CANCELLED.value]
+                incomplete_orders = [o for o in valid_orders if o.status not in COMPLETED_STATUSES]
+                if incomplete_orders:
+                    table_label = f"Table {sess.table_number or order.table_number}" if (sess.table_number or order.table_number) else "this table"
+                    detail_payload = {
+                        "code": "SESSION_ORDERS_INCOMPLETE",
+                        "message": f"Some orders for {table_label} have not been marked as completed/served yet. Please verify that all items have been served to the customer before generating the final bill.",
+                        "table_number": sess.table_number or order.table_number,
+                        "incomplete_orders": [
+                            {
+                                "order_id": o.id,
+                                "order_number": o.id,
+                                "table_number": sess.table_number or (o.table_number or 0),
+                                "status": o.status,
+                                "items": [
+                                    {
+                                        "name": oi.name,
+                                        "quantity": oi.quantity,
+                                    }
+                                    for oi in o.items
+                                ],
+                            }
+                            for o in incomplete_orders
+                        ],
+                    }
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=detail_payload,
+                    )
+        elif order.status not in COMPLETED_STATUSES and order.status != OrderStatus.CANCELLED.value:
+            table_label = f"Table {order.table_number}" if order.table_number else "this order"
+            detail_payload = {
+                "code": "SESSION_ORDERS_INCOMPLETE",
+                "message": f"Some orders for {table_label} have not been marked as completed/served yet. Please verify that all items have been served to the customer before generating the final bill.",
+                "table_number": order.table_number,
+                "incomplete_orders": [
+                    {
+                        "order_id": order.id,
+                        "order_number": order.id,
+                        "table_number": order.table_number or 0,
+                        "status": order.status,
+                        "items": [
+                            {
+                                "name": oi.name,
+                                "quantity": oi.quantity,
+                            }
+                            for oi in order.items
+                        ],
+                    }
+                ],
+            }
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=detail_payload,
             )
 
         subtotal = round(sum(oi.item_total for oi in order.items), 2)

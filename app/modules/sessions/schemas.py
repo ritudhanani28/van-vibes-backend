@@ -55,6 +55,21 @@ class BillReceiptItem(BaseModel):
     notes: Optional[str] = None
 
 
+class IncompleteItemDetail(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    name: str
+    quantity: int
+
+
+class IncompleteOrderItemResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    order_id: str = Field(..., alias="orderId")
+    order_number: Optional[str] = Field(None, alias="orderNumber")
+    table_number: int = Field(..., alias="tableNumber")
+    status: str
+    items: List[IncompleteItemDetail] = Field(default_factory=list)
+
+
 class BillReceiptResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -81,6 +96,8 @@ class BillReceiptResponse(BaseModel):
     created_at: str = Field(..., alias="createdAt")
     session_status: Optional[str] = Field(None, alias="sessionStatus")
     table_status: Optional[str] = Field(None, alias="tableStatus")
+    has_incomplete_orders: bool = Field(False, alias="hasIncompleteOrders")
+    incomplete_orders: List[IncompleteOrderItemResponse] = Field(default_factory=list, alias="incompleteOrders")
 
 
 class DiningSessionResponse(BaseModel):

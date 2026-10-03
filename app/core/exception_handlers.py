@@ -47,6 +47,23 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
+        if isinstance(exc.detail, dict):
+            detail_dict = exc.detail
+            msg = str(detail_dict.get("message", "Request failed"))
+            api_logger.warning("HTTPException [%d]: %s", exc.status_code, msg)
+            content = {
+                "success": False,
+                "statusCode": exc.status_code,
+                "message": msg,
+                "errors": detail_dict.get("errors", []),
+                "data": detail_dict,
+                **detail_dict,
+            }
+            return JSONResponse(
+                status_code=exc.status_code,
+                headers=dict(exc.headers) if exc.headers else None,
+                content=content,
+            )
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
         if exc.status_code >= 500:
             api_logger.error("HTTPException [%d]: %s", exc.status_code, detail)

@@ -12,6 +12,8 @@ from app.modules.sessions.models import BillingInvoice, DiningSession, SessionSt
 from app.modules.sessions.schemas import (
     BillReceiptItem,
     BillReceiptResponse,
+    IncompleteItemDetail,
+    IncompleteOrderItemResponse,
     DiningSessionDetailResponse,
     DiningSessionResponse,
     GenerateBillRequest,
@@ -407,6 +409,40 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
     round_off = getattr(invoice, "round_off", 0.0) if invoice else getattr(order, "round_off", 0.0)
     amount_after_adjustments = round(order.subtotal - disc_amt + extra_chg, 2)
 
+    COMPLETED_STATUSES = {OrderStatus.COMPLETED.value, OrderStatus.SERVED.value}
+    incomplete_list = []
+    if order.dining_session_id:
+        sess = SessionCRUD.get_by_id(db, order.dining_session_id)
+        if sess:
+            valid_orders = [o for o in sess.orders if o.status != OrderStatus.CANCELLED.value]
+            incomplete_list = [
+                IncompleteOrderItemResponse(
+                    order_id=o.id,
+                    order_number=o.id,
+                    table_number=sess.table_number or (o.table_number or 0),
+                    status=o.status,
+                    items=[
+                        IncompleteItemDetail(name=oi.name, quantity=oi.quantity)
+                        for oi in o.items
+                    ],
+                )
+                for o in valid_orders
+                if o.status not in COMPLETED_STATUSES
+            ]
+    elif order.status not in COMPLETED_STATUSES and order.status != OrderStatus.CANCELLED.value:
+        incomplete_list = [
+            IncompleteOrderItemResponse(
+                order_id=order.id,
+                order_number=order.id,
+                table_number=order.table_number or 0,
+                status=order.status,
+                items=[
+                    IncompleteItemDetail(name=oi.name, quantity=oi.quantity)
+                    for oi in order.items
+                ],
+            )
+        ]
+
     return BillReceiptResponse(
         bill_number=bill_number,
         order_id=order.id,
@@ -429,4 +465,6 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
         created_at=order.created_at.isoformat(),
         session_status=order.dining_session.status if order.dining_session else None,
         table_status=db.query(Table.status).filter(Table.id == order.table_id).scalar(),
+        has_incomplete_orders=len(incomplete_list) > 0,
+        incomplete_orders=incomplete_list,
     )

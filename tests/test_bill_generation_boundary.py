@@ -83,6 +83,24 @@ def test_bill_generation_permanently_closes_order_group():
     assert s1_detail["orderCount"] == 2
     assert s1_detail["status"] == "OPEN"
 
+    # Validation check: attempting to generate bill while orders are incomplete must be rejected with 409
+    blocked_bill = client.post(
+        f"/api/v1/billing/sessions/{s1_id}/generate",
+        json={"discountPercentage": 0.0},
+        headers=admin_headers
+    )
+    assert blocked_bill.status_code == 409
+    assert blocked_bill.json()["code"] == "SESSION_ORDERS_INCOMPLETE"
+
+    # Mark orders as SERVED / COMPLETED
+    with next(get_db()) as db:
+        from app.modules.orders.models import Order
+        ord1 = db.query(Order).filter(Order.id == o1_id).first()
+        ord2 = db.query(Order).filter(Order.id == o2_id).first()
+        ord1.status = "SERVED"
+        ord2.status = "COMPLETED"
+        db.commit()
+
     # Step 4: Admin Generates Final Bill for S001
     # Boundary enforced: S001 transitions to BILL_GENERATED, Table 12 becomes AVAILABLE immediately
     bill_res = client.post(
@@ -156,6 +174,15 @@ def test_bill_generation_permanently_closes_order_group():
 
     s2_check2 = client.get(f"/api/v1/dining-sessions/{s2_id}").json()
     assert s2_check2["orderCount"] == 2
+
+    # Complete orders for S002 before bill generation
+    with next(get_db()) as db:
+        from app.modules.orders.models import Order
+        ord3 = db.query(Order).filter(Order.id == o3_data["id"]).first()
+        ord4 = db.query(Order).filter(Order.id == o4_res.json()["id"]).first()
+        ord3.status = "SERVED"
+        ord4.status = "COMPLETED"
+        db.commit()
 
     # Step 8: Admin generates bill for S002
     bill2 = client.post(f"/api/v1/billing/sessions/{s2_id}/generate", json={}, headers=admin_headers)
