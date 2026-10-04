@@ -116,6 +116,11 @@ def test_complete_table_session_lifecycle():
     assert detail_data["orderCount"] == 2
     assert detail_data["status"] == "OPEN"
 
+    client.patch(f"/api/v1/orders/{order1_id}/status", json={"status": "ACCEPTED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order1_id}/status", json={"status": "COMPLETED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order2_id}/status", json={"status": "ACCEPTED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order2_id}/status", json={"status": "COMPLETED"}, headers=admin_headers)
+
     # Step 5: Admin generates final bill for S001 with 10% discount
     # Critical requirement: S001 -> BILL_GENERATED, Table 4 -> AVAILABLE immediately!
     bill_resp = client.post(
@@ -177,6 +182,7 @@ def test_complete_table_session_lifecycle():
     })
     assert order3_resp.status_code == 201
     assert order3_resp.json()["diningSessionId"] == s002_id
+    order3_id = order3_resp.json()["id"]
 
     # Verify Pending Payments includes S001 unpaid bill, and reflects Table 4 is currently OCCUPIED by S002
     pending_resp = client.get("/api/v1/billing/pending", headers=admin_headers)
@@ -202,6 +208,12 @@ def test_complete_table_session_lifecycle():
 
     tbl_check = client.get("/api/v1/tables/T04")
     assert tbl_check.json()["status"] == "OCCUPIED"
+
+    order_new_id = resp6_data["id"]
+    client.patch(f"/api/v1/orders/{order_new_id}/status", json={"status": "ACCEPTED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order_new_id}/status", json={"status": "COMPLETED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order3_id}/status", json={"status": "ACCEPTED"}, headers=admin_headers)
+    client.patch(f"/api/v1/orders/{order3_id}/status", json={"status": "COMPLETED"}, headers=admin_headers)
 
     # Step 9: S002 finishes eating -> Final Bill generated -> Table 4 becomes AVAILABLE
     bill2_resp = client.post(f"/api/v1/billing/sessions/{s002_id}/generate", json={}, headers=admin_headers)

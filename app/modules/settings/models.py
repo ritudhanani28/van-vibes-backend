@@ -2,25 +2,26 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.config import settings
 from app.db.session import Base
 
 
 class CafeSettings(Base):
     __tablename__ = "cafe_settings"
 
-    id: Mapped[str] = mapped_column(String(50), primary_key=True, default="van-vibes")
-    name: Mapped[str] = mapped_column(String(255), default="Vaan Vibes Cafe & Restro", nullable=False)
-    hindi_name: Mapped[str] = mapped_column(String(255), default="वन VIBES", nullable=False)
-    tagline: Mapped[str] = mapped_column(String(255), default="Cafe & Restro • Taste the Vibe", nullable=False)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=settings.CAFE_ID)
+    name: Mapped[str] = mapped_column(String(255), default=lambda: settings.CAFE_NAME, nullable=False)
+    hindi_name: Mapped[str] = mapped_column(String(255), default=lambda: settings.CAFE_HINDI_NAME, nullable=False)
+    tagline: Mapped[str] = mapped_column(String(255), default=lambda: settings.CAFE_TAGLINE, nullable=False)
     address: Mapped[str] = mapped_column(
         String(500),
-        default="Main Promenade, Serenita Arts Quarter, Surat, Gujarat - 395007",
+        default=lambda: settings.CAFE_ADDRESS,
         nullable=False,
     )
-    phone: Mapped[str] = mapped_column(String(50), default="+91 98765 43210", nullable=False)
-    gstin: Mapped[str] = mapped_column(String(50), default="24AAAAA0000A1Z5", nullable=False)
-    tax_rate: Mapped[float] = mapped_column(Float, default=0.05, nullable=False)
-    currency: Mapped[str] = mapped_column(String(10), default="₹", nullable=False)
+    phone: Mapped[str] = mapped_column(String(50), default=lambda: settings.CAFE_PHONE, nullable=False)
+    gstin: Mapped[str] = mapped_column(String(50), default=lambda: settings.CAFE_GSTIN, nullable=False)
+    tax_rate: Mapped[float] = mapped_column(Float, default=lambda: settings.CAFE_TAX_RATE, nullable=False)
+    currency: Mapped[str] = mapped_column(String(10), default=lambda: settings.CAFE_CURRENCY, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

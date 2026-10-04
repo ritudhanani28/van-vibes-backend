@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
+from app.core.config import settings
 import app.db.base  # noqa: F401
 from app.db.session import Base, SessionLocal, engine
 from app.modules.menu.models import Category, MenuItem
@@ -31,15 +32,15 @@ def seed_database():
         # 1. Cafe Settings (1)
         print("Seeding Cafe Settings (1)...")
         settings_record = CafeSettings(
-            id="van-vibes",
-            name="Vaan Vibes Cafe & Restro",
-            hindi_name="वन VIBES",
-            tagline="Cafe & Restro • Taste the Vibe",
-            address="Main Promenade, Serenita Arts Quarter, Surat, Gujarat - 395007",
-            phone="+91 98765 43210",
-            gstin="24AAAAA0000A1Z5",
-            tax_rate=0.05,
-            currency="₹",
+            id=settings.CAFE_ID,
+            name=settings.CAFE_NAME,
+            hindi_name=settings.CAFE_HINDI_NAME,
+            tagline=settings.CAFE_TAGLINE,
+            address=settings.CAFE_ADDRESS,
+            phone=settings.CAFE_PHONE,
+            gstin=settings.CAFE_GSTIN,
+            tax_rate=settings.CAFE_TAX_RATE,
+            currency=settings.CAFE_CURRENCY,
         )
         db.add(settings_record)
         db.flush()

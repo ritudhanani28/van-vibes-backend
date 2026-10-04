@@ -11,7 +11,7 @@ class CafeSettingsResponse(BaseModel):
     tagline: str = "Cafe & Restro • Taste the Vibe"
     address: str
     phone: str
-    gstin: str = "24AAAAA0000A1Z5"
+    gstin: str = ""
     currency: str = "₹"
     tax_rate: float = Field(0.05, alias="taxRate")
 

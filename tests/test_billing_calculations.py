@@ -118,6 +118,11 @@ def test_session_billing_complete_workflow():
     assert detail["tax"] == 0.0
     assert detail["total"] == 440.0
 
+    client.patch(f"/api/v1/orders/{o1['id']}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o1['id']}/status", json={"status": "COMPLETED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o2['id']}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o2['id']}/status", json={"status": "COMPLETED"}, headers=headers)
+
     # 5. Generate Session Bill with 10% discount and 20.00 extra charge
     # Subtotal = 440.00, Discount 10% = 44.00, Extra = 20.00
     # Amount After Adjustments = 440 - 44 + 20 = 416.00
@@ -202,6 +207,8 @@ def test_order_billing_round_off_and_extra_charge():
     assert o_res.status_code == 201
     order = o_res.json()
     order_id = order["id"]
+    client.patch(f"/api/v1/orders/{order_id}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{order_id}/status", json={"status": "COMPLETED"}, headers=headers)
 
     # Apply 15% discount + 12.30 extra charge
     # Subtotal 140.00

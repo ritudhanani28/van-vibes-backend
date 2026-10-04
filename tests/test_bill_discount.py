@@ -43,7 +43,12 @@ def _create_order_for_billing():
     }
     res = client.post("/api/v1/orders", json=payload)
     assert res.status_code == 201, f"Failed to create order: {res.text}"
-    return res.json()
+    order_data = res.json()
+    admin_token, _ = _get_tokens()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    client.patch(f"/api/v1/orders/{order_data['id']}/status", headers=headers, json={"status": "ACCEPTED"})
+    client.patch(f"/api/v1/orders/{order_data['id']}/status", headers=headers, json={"status": "COMPLETED"})
+    return order_data
 
 
 def test_menu_item_has_no_discount_fields():

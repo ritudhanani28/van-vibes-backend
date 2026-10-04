@@ -84,6 +84,11 @@ def test_full_table_session_multi_order_lifecycle():
     assert sess_detail["orderCount"] == 2
     assert sess_detail["status"] == "OPEN"
 
+    client.patch(f"/api/v1/orders/{o1['id']}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o1['id']}/status", json={"status": "COMPLETED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o2['id']}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o2['id']}/status", json={"status": "COMPLETED"}, headers=headers)
+
     # Step 6: Admin generates Final Bill for Session 1 with 10% discount
     bill_gen = client.post(
         f"/api/v1/billing/sessions/{session_1_id}/generate",
@@ -133,7 +138,8 @@ def test_full_table_session_multi_order_lifecycle():
         "items": [{"menuItemId": "hc-01", "name": "Espresso", "quantity": 1}],
     })
     assert o3_res.status_code == 201
-    assert o3_res.json()["diningSessionId"] == session_2_id
+    o3 = o3_res.json()
+    assert o3["diningSessionId"] == session_2_id
 
     # Step 9: Old Customer from Session 1 FINALLY pays their bill!
     settle_res = client.post(
@@ -156,6 +162,9 @@ def test_full_table_session_multi_order_lifecycle():
     sess_2_status = client.get(f"/api/v1/dining-sessions/{session_2_id}").json()
     assert sess_2_status["status"] == "OPEN"
     assert sess_2_status["orderCount"] == 1
+
+    client.patch(f"/api/v1/orders/{o3['id']}/status", json={"status": "ACCEPTED"}, headers=headers)
+    client.patch(f"/api/v1/orders/{o3['id']}/status", json={"status": "COMPLETED"}, headers=headers)
 
     # Step 10: Session 2 finishes and generates final bill
     bill_gen_s2 = client.post(

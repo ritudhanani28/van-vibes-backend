@@ -44,6 +44,23 @@ class Settings(BaseSettings):
     CAFE_ID: str = "van-vibes"
     CAFE_SECRET_KEY: str = "vv_cafe_standee_hmac_secret_2026"
 
+    # Cafe Branding & Contact Settings
+    CAFE_NAME: str = "Vaan Vibes Cafe & Restro"
+    CAFE_HINDI_NAME: str = "वन VIBES"
+    CAFE_TAGLINE: str = "Cafe & Restro • Taste the Vibe"
+    CAFE_ADDRESS: str = ""
+    CAFE_PHONE: str = ""
+    CAFE_GSTIN: str = ""
+    CAFE_EMAIL: str = ""
+    CAFE_ORDERS_EMAIL: str = ""
+    CAFE_TAX_RATE: float = 0.05
+    CAFE_CURRENCY: str = "₹"
+    CAFE_HOURS: str = ""
+    CAFE_MORNING_HOURS: str = ""
+    CAFE_BREAK_HOURS: str = ""
+    CAFE_EVENING_HOURS: str = ""
+    CAFE_CUISINES: str = ""
+
     # Frontend URLs
     CUSTOMER_FRONTEND_URL: Optional[str] = None
     MANAGEMENT_FRONTEND_URL: Optional[str] = None
