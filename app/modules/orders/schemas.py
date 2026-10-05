@@ -121,6 +121,8 @@ class OrderResponse(BaseModel):
     total: float
     session_status: Optional[str] = Field(None, alias="sessionStatus")
     bill_generated: bool = Field(False, alias="billGenerated")
+    activity_status: str = Field("ACTIVE", alias="activityStatus")
+    is_active: bool = Field(True, alias="isActive")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
     items: List[OrderItemResponse] = []
@@ -144,6 +146,8 @@ class ChefOrderResponse(BaseModel):
     status: str
     session_status: Optional[str] = Field(None, alias="sessionStatus")
     bill_generated: bool = Field(False, alias="billGenerated")
+    activity_status: str = Field("ACTIVE", alias="activityStatus")
+    is_active: bool = Field(True, alias="isActive")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
     items: List[ChefOrderItemResponse] = []

@@ -29,12 +29,18 @@ def _format_order(order: Order, role: Optional[str] = None) -> Union[OrderRespon
             and any(getattr(inv, "bill_type", None) == "SESSION" for inv in order.dining_session.invoices)
         )
     )
+    is_completed = (order.status or "").upper() == OrderStatus.COMPLETED.value
+    is_paid = (order.payment_status or "").upper() == "PAID"
+    act_status = "INACTIVE" if (is_completed and has_bill and is_paid) else "ACTIVE"
+
     if role == "CHEF":
         obj = ChefOrderResponse.model_validate(order)
     else:
         obj = OrderResponse.model_validate(order)
     obj.session_status = sess_status
     obj.bill_generated = has_bill
+    obj.activity_status = act_status
+    obj.is_active = (act_status == "ACTIVE")
     return obj
 
 
@@ -50,10 +56,11 @@ def list_orders_endpoint(
     dining_session_id: Optional[str] = Query(None, description="Filter by dining session ID"),
     session_token: Optional[str] = Query(None, description="Filter by guest session token"),
     range: Optional[str] = Query(None, description="Filter by date range: today, yesterday, 30_days, month, year"),
+    activity_status: Optional[str] = Query(None, description="Filter by lifecycle activity: ACTIVE, INACTIVE, ALL"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
-    """List orders with role-based field filtering and optional date range."""
+    """List orders with role-based field filtering, optional date range, and lifecycle activity."""
     from app.modules.dashboard.service import parse_date_range
 
     start_dt, end_dt = parse_date_range(range) if range else (None, None)
@@ -67,7 +74,11 @@ def list_orders_endpoint(
         end_dt=end_dt,
     )
     user_role = current_user.role if current_user else None
-    return [_format_order(o, role=user_role) for o in orders]
+    formatted = [_format_order(o, role=user_role) for o in orders]
+    if activity_status and activity_status.upper() in ["ACTIVE", "INACTIVE"]:
+        target_act = activity_status.upper()
+        return [o for o in formatted if o.activity_status == target_act]
+    return formatted
 
 
 def get_order_endpoint(

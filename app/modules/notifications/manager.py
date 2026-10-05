@@ -200,9 +200,14 @@ class ConnectionManager:
     ):
         payload = {
             "orderId": order_id,
+            "order_id": order_id,
             "tableId": table_id,
+            "table_id": table_id,
             "invoiceNumber": invoice_number,
             "paymentStatus": "PAID",
+            "payment_status": "PAID",
+            "billGenerated": True,
+            "bill_generated": True,
             "paymentMethod": payment_method,
         }
         await self.broadcast_event(
@@ -247,7 +252,15 @@ class ConnectionManager:
         )
 
     async def notify_bill_generated(self, table_id: str, session_id: str):
-        payload = {"tableId": table_id, "sessionId": session_id, "status": "BILL_GENERATED"}
+        payload = {
+            "tableId": table_id,
+            "table_id": table_id,
+            "sessionId": session_id,
+            "session_id": session_id,
+            "status": "BILL_GENERATED",
+            "billGenerated": True,
+            "bill_generated": True,
+        }
         await self.broadcast_event(
             event_type="BILL_GENERATED",
             admin_payload=payload,

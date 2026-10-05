@@ -101,6 +101,28 @@ class Order(Base):
             return any(getattr(inv, "bill_type", None) == "SESSION" for inv in self.dining_session.invoices)
         return False
 
+    @property
+    def activity_status(self) -> str:
+        """
+        Determines whether the order lifecycle is 'ACTIVE' or 'INACTIVE'.
+        An order is INACTIVE if and only if:
+          order_completed = True (status == COMPLETED)
+          AND bill_generated = True
+          AND payment_status = 'PAID'.
+        Otherwise, it is ACTIVE.
+        """
+        st = (self.status or "").upper()
+        is_completed = st == OrderStatus.COMPLETED.value
+        is_bill_gen = self.bill_generated
+        is_paid = (self.payment_status or "").upper() == "PAID"
+        if is_completed and is_bill_gen and is_paid:
+            return "INACTIVE"
+        return "ACTIVE"
+
+    @property
+    def is_active(self) -> bool:
+        return self.activity_status == "ACTIVE" 
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"
