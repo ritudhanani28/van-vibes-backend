@@ -168,6 +168,41 @@ class ConnectionManager:
             table_id=table_id,
         )
 
+    async def notify_order_cancelled(
+        self,
+        order_id: str,
+        table_id: Optional[str],
+        reason: Optional[str] = None,
+        cancellation_note: Optional[str] = None,
+        cancelled_by: Optional[str] = "customer",
+        cancelled_at: Optional[str] = None,
+        updated_at: Optional[str] = None,
+    ):
+        payload = {
+            "order_id": order_id,
+            "orderId": order_id,
+            "status": "CANCELLED",
+            "table_id": table_id,
+            "tableId": table_id,
+            "reason": reason,
+            "cancellation_reason": reason,
+            "cancellationReason": reason,
+            "cancellation_note": cancellation_note,
+            "cancellationNote": cancellation_note,
+            "cancelled_by": cancelled_by,
+            "cancelledBy": cancelled_by,
+            "cancelled_at": cancelled_at,
+            "cancelledAt": cancelled_at,
+            "updated_at": updated_at,
+            "updatedAt": updated_at,
+        }
+        await self.broadcast_event(
+            event_type="ORDER_CANCELLED",
+            admin_payload=payload,
+            chef_payload=payload,
+            table_id=table_id,
+        )
+
     async def notify_order_status_updated(
         self,
         order_id: str,

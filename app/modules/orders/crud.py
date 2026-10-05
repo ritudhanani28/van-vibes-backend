@@ -64,6 +64,25 @@ class OrderCRUD:
         db.refresh(order)
         return order
 
+    @staticmethod
+    def cancel_order(
+        db: Session,
+        order: Order,
+        reason: str,
+        cancellation_note: Optional[str] = None,
+        cancelled_by: str = "customer",
+    ) -> Order:
+        now = datetime.now(timezone.utc)
+        order.status = OrderStatus.CANCELLED.value
+        order.cancellation_reason = reason
+        order.cancellation_note = cancellation_note
+        order.cancelled_by = cancelled_by
+        order.cancelled_at = now
+        order.updated_at = now
+        db.commit()
+        db.refresh(order)
+        return order
+
 
 class CustomerCRUD:
     @staticmethod

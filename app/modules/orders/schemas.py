@@ -125,6 +125,10 @@ class OrderResponse(BaseModel):
     is_active: bool = Field(True, alias="isActive")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
+    cancellation_reason: Optional[str] = Field(None, alias="cancellationReason")
+    cancellation_note: Optional[str] = Field(None, alias="cancellationNote")
+    cancelled_by: Optional[str] = Field(None, alias="cancelledBy")
+    cancelled_at: Optional[datetime] = Field(None, alias="cancelledAt")
     items: List[OrderItemResponse] = []
 
 
@@ -150,6 +154,10 @@ class ChefOrderResponse(BaseModel):
     is_active: bool = Field(True, alias="isActive")
     created_at: datetime = Field(..., alias="createdAt")
     updated_at: datetime = Field(..., alias="updatedAt")
+    cancellation_reason: Optional[str] = Field(None, alias="cancellationReason")
+    cancellation_note: Optional[str] = Field(None, alias="cancellationNote")
+    cancelled_by: Optional[str] = Field(None, alias="cancelledBy")
+    cancelled_at: Optional[datetime] = Field(None, alias="cancelledAt")
     items: List[ChefOrderItemResponse] = []
 
 
@@ -158,4 +166,8 @@ class UpdateOrderStatusRequest(BaseModel):
 
 
 class CancelOrderRequest(BaseModel):
-    reason: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    reason: Optional[str] = Field(None, description="Reason for cancellation")
+    cancellation_note: Optional[str] = Field(None, alias="cancellationNote")
+    cancelled_by: Optional[str] = Field("customer", alias="cancelledBy")

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import require_admin, require_chef_or_admin
 from app.db.session import get_db
 from app.modules.accounts.models import User
+from app.modules.menu.models import MenuItem
 from app.modules.orders.models import Order, OrderStatus
 from app.modules.sessions.crud import BillingCRUD, SessionCRUD
 from app.modules.sessions.models import BillingInvoice, DiningSession, SessionStatus
@@ -22,6 +23,7 @@ from app.modules.sessions.schemas import (
 )
 from app.modules.sessions.service import BillingService, SessionService, calculate_bill_totals
 from app.modules.tables.models import Table
+from app.modules.settings.models import CafeSettings
 from app.modules.notifications.manager import ws_manager
 
 
@@ -265,7 +267,7 @@ async def generate_session_bill_endpoint(
     disc_pct = payload.discount_percentage if payload else 0.0
     extra_chg = payload.extra_charge if payload else 0.0
     invoice, session = await SessionService.generate_final_bill(db, session_id, disc_pct, extra_charge=extra_chg)
-    return BillingService.format_session_receipt(session, invoice)
+    return BillingService.format_session_receipt(session, invoice, db)
 
 
 async def settle_session_bill_endpoint(
@@ -316,7 +318,7 @@ def get_session_bill_receipt_endpoint(
             detail=f"Dining session '{session_id}' not found",
         )
     invoice = BillingCRUD.get_invoice_by_session(db, session.id, bill_type="SESSION")
-    return BillingService.format_session_receipt(session, invoice)
+    return BillingService.format_session_receipt(session, invoice, db)
 
 
 def get_pending_invoices_endpoint(
@@ -388,15 +390,25 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
     invoice = db.query(BillingInvoice).filter(BillingInvoice.order_id == order_id).first()
     bill_number = invoice.invoice_number if invoice else f"BILL-{order.id}"
 
+    menu_item_ids = {oi.menu_item_id for oi in order.items if getattr(oi, "menu_item_id", None)}
+    menu_items_map = {}
+    if menu_item_ids:
+        menu_items = db.query(MenuItem).filter(MenuItem.id.in_(menu_item_ids)).all()
+        menu_items_map = {m.id: m for m in menu_items}
+
     items = []
     for oi in order.items:
+        base_unit, base_tot, extras = BillingService._extract_item_extras_and_base_price(oi, menu_items_map)
         items.append(
             BillReceiptItem(
                 name=oi.name,
                 quantity=oi.quantity,
                 unit_price=oi.unit_price,
                 total_price=oi.item_total,
+                base_unit_price=base_unit,
+                base_total_price=base_tot,
                 notes=oi.special_instructions,
+                extras=extras,
             )
         )
 
@@ -443,8 +455,12 @@ def get_bill_receipt_endpoint(order_id: str, db: Session = Depends(get_db)) -> B
             )
         ]
 
+    cafe_settings = db.query(CafeSettings).first()
     return BillReceiptResponse(
         bill_number=bill_number,
+        upi_id=cafe_settings.upi_id if (cafe_settings and cafe_settings.upi_id) else "9773291261@okbizaxis",
+        upi_payee_name=cafe_settings.upi_payee_name if (cafe_settings and cafe_settings.upi_payee_name) else "OM DIYORA",
+        payment_qr_code=cafe_settings.payment_qr_code if (cafe_settings and cafe_settings.payment_qr_code) else None,
         order_id=order.id,
         table_number=order.table_number or 0,
         customer_name=order.customer_name,

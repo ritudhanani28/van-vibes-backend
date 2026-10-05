@@ -29,9 +29,10 @@ def _format_order(order: Order, role: Optional[str] = None) -> Union[OrderRespon
             and any(getattr(inv, "bill_type", None) == "SESSION" for inv in order.dining_session.invoices)
         )
     )
+    is_cancelled = (order.status or "").upper() == OrderStatus.CANCELLED.value
     is_completed = (order.status or "").upper() == OrderStatus.COMPLETED.value
     is_paid = (order.payment_status or "").upper() == "PAID"
-    act_status = "INACTIVE" if (is_completed and has_bill and is_paid) else "ACTIVE"
+    act_status = "INACTIVE" if (is_cancelled or (is_completed and has_bill and is_paid)) else "ACTIVE"
 
     if role == "CHEF":
         obj = ChefOrderResponse.model_validate(order)
@@ -156,11 +157,23 @@ async def cancel_order_endpoint(
     order_id: str,
     payload: Optional[CancelOrderRequest] = None,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Cancel order (only permitted in PLACED stage)."""
     reason = payload.reason if payload else None
-    order = await OrderService.cancel_order(db=db, order_id=order_id, reason=reason)
-    return {"message": f"Order {order_id} has been cancelled", "order": OrderResponse.model_validate(order)}
+    cancellation_note = payload.cancellation_note if payload else None
+    default_cancelled_by = "management" if current_user else "customer"
+    cancelled_by = payload.cancelled_by if (payload and payload.cancelled_by) else default_cancelled_by
+
+    order = await OrderService.cancel_order(
+        db=db,
+        order_id=order_id,
+        reason=reason,
+        cancellation_note=cancellation_note,
+        cancelled_by=cancelled_by,
+    )
+    user_role = current_user.role if current_user else None
+    return {"message": f"Order {order_id} has been cancelled", "order": _format_order(order, role=user_role)}
 
 
 async def create_order_bill_endpoint(

@@ -14,6 +14,9 @@ class CafeSettingsResponse(BaseModel):
     gstin: str = ""
     currency: str = "₹"
     tax_rate: float = Field(0.05, alias="taxRate")
+    upi_id: Optional[str] = Field("9773291261@okbizaxis", alias="upiId")
+    upi_payee_name: Optional[str] = Field("OM DIYORA", alias="upiPayeeName")
+    payment_qr_code: Optional[str] = Field(None, alias="paymentQrCode")
 
 
 class CafeSettingsUpdate(BaseModel):
@@ -26,3 +29,6 @@ class CafeSettingsUpdate(BaseModel):
     phone: Optional[str] = None
     gstin: Optional[str] = None
     tax_rate: Optional[float] = Field(None, alias="taxRate")
+    upi_id: Optional[str] = Field(None, alias="upiId")
+    upi_payee_name: Optional[str] = Field(None, alias="upiPayeeName")
+    payment_qr_code: Optional[str] = Field(None, alias="paymentQrCode")

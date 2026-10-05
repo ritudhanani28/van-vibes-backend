@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.modules.orders.models import Order, OrderStatus
 from app.modules.sessions.crud import BillingCRUD, SessionCRUD
 from app.modules.sessions.models import BillingInvoice, DiningSession, SessionStatus
+from app.modules.menu.models import MenuItem
 from app.modules.sessions.schemas import (
+    BillReceiptExtra,
     BillReceiptItem,
     BillReceiptResponse,
     GenerateBillRequest,
@@ -18,6 +20,7 @@ from app.modules.sessions.schemas import (
     SettlePaymentRequest,
 )
 from app.modules.tables.models import Table
+from app.modules.settings.models import CafeSettings
 from app.modules.notifications.manager import ws_manager
 
 
@@ -508,35 +511,111 @@ class BillingService:
     """Centralized billing computation and settlement logic."""
 
     @classmethod
-    def format_session_receipt(cls, session: DiningSession, invoice: Optional[BillingInvoice] = None) -> BillReceiptResponse:
+    def _extract_item_extras_and_base_price(
+        cls,
+        order_item,
+        menu_items_map: dict
+    ) -> Tuple[float, float, Optional[List[BillReceiptExtra]]]:
+        menu_item = menu_items_map.get(order_item.menu_item_id) if getattr(order_item, "menu_item_id", None) else None
+        add_ons_dict = {}
+        if menu_item and menu_item.add_ons:
+            add_ons_dict = {
+                ao["name"]: float(ao["price"])
+                for ao in menu_item.add_ons
+                if isinstance(ao, dict) and "name" in ao and "price" in ao
+            }
+
+        extras_list: List[BillReceiptExtra] = []
+        selected_add_ons = getattr(order_item, "selected_add_ons", None) or []
+        for ao_name in selected_add_ons:
+            ao_price = add_ons_dict.get(ao_name)
+            if ao_price is None:
+                ao_price = 0.0
+            extras_list.append(
+                BillReceiptExtra(
+                    name=ao_name,
+                    price=round(float(ao_price), 2),
+                    total=round(float(ao_price) * order_item.quantity, 2),
+                )
+            )
+
+        sum_extra_unit = sum(e.price for e in extras_list)
+        if sum_extra_unit == 0.0 and extras_list and menu_item and float(order_item.unit_price) > float(menu_item.price):
+            diff = round(float(order_item.unit_price) - float(menu_item.price), 2)
+            per_extra = round(diff / len(extras_list), 2)
+            extras_list = [
+                BillReceiptExtra(
+                    name=e.name,
+                    price=per_extra,
+                    total=round(per_extra * order_item.quantity, 2),
+                )
+                for e in extras_list
+            ]
+            sum_extra_unit = sum(e.price for e in extras_list)
+
+        base_unit_price = round(max(0.0, float(order_item.unit_price) - sum_extra_unit), 2)
+        base_total_price = round(base_unit_price * order_item.quantity, 2)
+        return base_unit_price, base_total_price, extras_list if extras_list else None
+
+    @classmethod
+    def format_session_receipt(cls, session: DiningSession, invoice: Optional[BillingInvoice] = None, db: Optional[Session] = None) -> BillReceiptResponse:
+        from sqlalchemy.orm import object_session
+        session_db = db or object_session(session)
         valid_orders = [o for o in session.orders if o.status != OrderStatus.CANCELLED.value]
+
+        menu_item_ids = {it.menu_item_id for o in valid_orders for it in o.items if getattr(it, "menu_item_id", None)}
+        menu_items_map = {}
+        if session_db and menu_item_ids:
+            menu_items = session_db.query(MenuItem).filter(MenuItem.id.in_(menu_item_ids)).all()
+            menu_items_map = {m.id: m for m in menu_items}
+
         items_map = {}
         for o in valid_orders:
             for it in o.items:
-                # Group by (name, unit_price) so customized variants with different prices remain separate
-                key = (it.name, round(it.unit_price, 2))
+                base_unit, base_tot, extras = cls._extract_item_extras_and_base_price(it, menu_items_map)
+                add_ons_key = tuple(sorted(getattr(it, "selected_add_ons", None) or []))
+                key = (it.name, round(it.unit_price, 2), add_ons_key)
                 if key in items_map:
                     items_map[key]["quantity"] += it.quantity
                     items_map[key]["total_price"] = round(items_map[key]["total_price"] + it.item_total, 2)
+                    items_map[key]["base_total_price"] = round(items_map[key]["base_total_price"] + base_tot, 2)
                 else:
                     items_map[key] = {
                         "name": it.name,
                         "quantity": it.quantity,
                         "unit_price": round(it.unit_price, 2),
                         "total_price": round(it.item_total, 2),
+                        "base_unit_price": base_unit,
+                        "base_total_price": base_tot,
+                        "extras_raw": extras,
                         "notes": it.special_instructions,
                     }
 
-        receipt_items = [
-            BillReceiptItem(
-                name=v["name"],
-                quantity=v["quantity"],
-                unit_price=v["unit_price"],
-                total_price=v["total_price"],
-                notes=v.get("notes"),
+        receipt_items = []
+        for v in items_map.values():
+            qty = v["quantity"]
+            extras_for_item = None
+            if v.get("extras_raw"):
+                extras_for_item = [
+                    BillReceiptExtra(
+                        name=e.name,
+                        price=e.price,
+                        total=round(e.price * qty, 2),
+                    )
+                    for e in v["extras_raw"]
+                ]
+            receipt_items.append(
+                BillReceiptItem(
+                    name=v["name"],
+                    quantity=qty,
+                    unit_price=v["unit_price"],
+                    total_price=v["total_price"],
+                    base_unit_price=v["base_unit_price"],
+                    base_total_price=v["base_total_price"],
+                    notes=v.get("notes"),
+                    extras=extras_for_item,
+                )
             )
-            for v in items_map.values()
-        ]
 
         subtotal = round(sum(it.total_price for it in receipt_items), 2)
         session_inv = invoice if (invoice and invoice.bill_type == "SESSION") else None
@@ -581,8 +660,12 @@ class BillingService:
         ]
         has_incomplete = len(incomplete_order_list) > 0
 
+        cafe_settings = session_db.query(CafeSettings).first() if session_db else None
         return BillReceiptResponse(
             bill_number=inv_num,
+            upi_id=cafe_settings.upi_id if (cafe_settings and cafe_settings.upi_id) else "9773291261@okbizaxis",
+            upi_payee_name=cafe_settings.upi_payee_name if (cafe_settings and cafe_settings.upi_payee_name) else "OM DIYORA",
+            payment_qr_code=cafe_settings.payment_qr_code if (cafe_settings and cafe_settings.payment_qr_code) else None,
             order_id=valid_orders[0].id if valid_orders else session.id,
             dining_session_id=session.id,
             order_ids=[o.id for o in valid_orders],
@@ -773,21 +856,36 @@ class BillingService:
         if tbl:
             await ws_manager.notify_table_status_updated(tbl.id, "AVAILABLE")
 
-        items = [
-            BillReceiptItem(
-                name=oi.name,
-                quantity=oi.quantity,
-                unit_price=oi.unit_price,
-                total_price=oi.item_total,
-                notes=oi.special_instructions,
+        menu_item_ids = {oi.menu_item_id for oi in order.items if getattr(oi, "menu_item_id", None)}
+        menu_items_map = {}
+        if menu_item_ids:
+            menu_items = db.query(MenuItem).filter(MenuItem.id.in_(menu_item_ids)).all()
+            menu_items_map = {m.id: m for m in menu_items}
+
+        items = []
+        for oi in order.items:
+            base_unit, base_tot, extras = cls._extract_item_extras_and_base_price(oi, menu_items_map)
+            items.append(
+                BillReceiptItem(
+                    name=oi.name,
+                    quantity=oi.quantity,
+                    unit_price=oi.unit_price,
+                    total_price=oi.item_total,
+                    base_unit_price=base_unit,
+                    base_total_price=base_tot,
+                    notes=oi.special_instructions,
+                    extras=extras,
+                )
             )
-            for oi in order.items
-        ]
 
         bill_number = invoice.invoice_number if invoice else f"BILL-{order.id}"
 
+        cafe_settings = db.query(CafeSettings).first()
         return BillReceiptResponse(
             bill_number=bill_number,
+            upi_id=cafe_settings.upi_id if (cafe_settings and cafe_settings.upi_id) else "9773291261@okbizaxis",
+            upi_payee_name=cafe_settings.upi_payee_name if (cafe_settings and cafe_settings.upi_payee_name) else "OM DIYORA",
+            payment_qr_code=cafe_settings.payment_qr_code if (cafe_settings and cafe_settings.payment_qr_code) else None,
             order_id=order.id,
             table_number=order.table_number or 0,
             customer_name=order.customer_name,

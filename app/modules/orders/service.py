@@ -134,8 +134,21 @@ class OrderService:
         return await cls.transition_order(db, order_id, OrderStatus.COMPLETED.value)
 
     @classmethod
-    async def cancel_order(cls, db: Session, order_id: str, reason: Optional[str] = None) -> Order:
+    async def cancel_order(
+        cls,
+        db: Session,
+        order_id: str,
+        reason: Optional[str] = None,
+        cancellation_note: Optional[str] = None,
+        cancelled_by: Optional[str] = "customer",
+    ) -> Order:
         """Cancel an order when in PLACED stage."""
+        if not reason or not reason.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please select a cancellation reason.",
+            )
+
         order = OrderCRUD.get_by_id(db, order_id)
         if not order:
             raise HTTPException(
@@ -143,13 +156,58 @@ class OrderService:
                 detail=f"Order '{order_id}' not found",
             )
 
-        if order.status != OrderStatus.PLACED.value:
+        current_st = (order.status or "").upper()
+        if current_st == OrderStatus.CANCELLED.value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot cancel order in '{order.status}' stage. Order has already been accepted or progressed.",
+                detail="This order has already been cancelled.",
+            )
+        if current_st == OrderStatus.COMPLETED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This order has already been completed and cannot be cancelled.",
+            )
+        if current_st != OrderStatus.PLACED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This order has already been accepted and cannot be cancelled.",
             )
 
-        return await cls.transition_order(db, order_id, target_status=OrderStatus.CANCELLED.value)
+        actor = (cancelled_by or "customer").strip().lower()
+        if actor not in ["customer", "management", "admin"]:
+            actor = "customer"
+
+        order = OrderCRUD.cancel_order(
+            db=db,
+            order=order,
+            reason=reason.strip(),
+            cancellation_note=cancellation_note.strip() if cancellation_note else None,
+            cancelled_by=actor,
+        )
+
+        iso_updated_at = order.updated_at.isoformat()
+        iso_cancelled_at = order.cancelled_at.isoformat() if order.cancelled_at else iso_updated_at
+
+        # Broadcast order cancelled event
+        await ws_manager.notify_order_cancelled(
+            order_id=order.id,
+            table_id=order.table_id,
+            reason=order.cancellation_reason,
+            cancellation_note=order.cancellation_note,
+            cancelled_by=order.cancelled_by,
+            cancelled_at=iso_cancelled_at,
+            updated_at=iso_updated_at,
+        )
+
+        # Broadcast general order status updated event
+        await ws_manager.notify_order_status_updated(
+            order_id=order.id,
+            new_status=order.status,
+            table_id=order.table_id,
+            updated_at=iso_updated_at,
+        )
+
+        return order
 
     @classmethod
     async def create_order(cls, db: Session, payload: CreateOrderRequest) -> Order:

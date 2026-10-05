@@ -76,6 +76,10 @@ class Order(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    cancellation_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    cancellation_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cancelled_by: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     items: Mapped[List["OrderItem"]] = relationship(
         "OrderItem", back_populates="order", cascade="all, delete-orphan", order_by="OrderItem.created_at"
@@ -112,6 +116,8 @@ class Order(Base):
         Otherwise, it is ACTIVE.
         """
         st = (self.status or "").upper()
+        if st == OrderStatus.CANCELLED.value:
+            return "INACTIVE"
         is_completed = st == OrderStatus.COMPLETED.value
         is_bill_gen = self.bill_generated
         is_paid = (self.payment_status or "").upper() == "PAID"

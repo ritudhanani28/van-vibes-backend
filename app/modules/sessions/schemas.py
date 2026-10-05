@@ -45,6 +45,14 @@ class SettlePaymentRequest(BaseModel):
     payment_method: str = Field("CASH", alias="paymentMethod")
 
 
+class BillReceiptExtra(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    price: float
+    total: float
+
+
 class BillReceiptItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -52,7 +60,10 @@ class BillReceiptItem(BaseModel):
     quantity: int
     unit_price: float = Field(..., alias="unitPrice")
     total_price: float = Field(..., alias="totalPrice")
+    base_unit_price: Optional[float] = Field(None, alias="baseUnitPrice")
+    base_total_price: Optional[float] = Field(None, alias="baseTotalPrice")
     notes: Optional[str] = None
+    extras: Optional[List[BillReceiptExtra]] = None
 
 
 class IncompleteItemDetail(BaseModel):
@@ -98,6 +109,9 @@ class BillReceiptResponse(BaseModel):
     table_status: Optional[str] = Field(None, alias="tableStatus")
     has_incomplete_orders: bool = Field(False, alias="hasIncompleteOrders")
     incomplete_orders: List[IncompleteOrderItemResponse] = Field(default_factory=list, alias="incompleteOrders")
+    upi_id: Optional[str] = Field("9773291261@okbizaxis", alias="upiId")
+    upi_payee_name: Optional[str] = Field("OM DIYORA", alias="upiPayeeName")
+    payment_qr_code: Optional[str] = Field(None, alias="paymentQrCode")
 
 
 class DiningSessionResponse(BaseModel):

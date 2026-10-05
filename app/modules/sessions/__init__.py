@@ -1,5 +1,6 @@
 from app.modules.sessions.models import BillingInvoice, DiningSession, SessionStatus
 from app.modules.sessions.schemas import (
+    BillReceiptExtra,
     BillReceiptItem,
     BillReceiptResponse,
     DiningSessionDetailResponse,
@@ -25,6 +26,7 @@ __all__ = [
     "GenerateBillRequest",
     "InvoiceResponse",
     "SettlePaymentRequest",
+    "BillReceiptExtra",
     "BillReceiptItem",
     "BillReceiptResponse",
     "SessionCRUD",
