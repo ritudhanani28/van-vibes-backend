@@ -1,6 +1,7 @@
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.modules.orders.models import OrderStatus
 
@@ -25,8 +26,24 @@ class CreateOrderRequest(BaseModel):
     table_id: str = Field(..., alias="tableId")
     token: str
     session_token: str = Field(..., alias="sessionToken")
-    customer_name: str = Field(..., alias="customerName", min_length=2)
-    customer_mobile: str = Field(..., alias="customerMobile", min_length=10, max_length=15)
+    customer_name: str = Field(..., alias="customerName", min_length=2, max_length=100)
+    customer_mobile: str = Field(..., alias="customerMobile", min_length=10, max_length=10, pattern=r"^\d{10}$")
+
+    @field_validator("customer_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        s = v.strip()
+        if len(s) < 2:
+            raise ValueError("Please enter your full name (minimum 2 characters)")
+        return s
+
+    @field_validator("customer_mobile")
+    @classmethod
+    def validate_mobile(cls, v: str) -> str:
+        s = v.strip()
+        if not re.match(r"^\d{10}$", s):
+            raise ValueError("Phone number must contain exactly 10 digits")
+        return s
     dining_session_id: Optional[str] = Field(None, alias="diningSessionId")
     special_instructions: Optional[str] = Field(None, alias="specialInstructions")
     items: List[CartItemInput] = Field(..., min_length=1)

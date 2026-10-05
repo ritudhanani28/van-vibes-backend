@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-
+import re
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -14,17 +14,21 @@ def _error_response(
     message: str,
     errors: list[dict[str, str]] | None = None,
     headers: Mapping[str, str] | None = None,
+    field_errors: dict[str, str] | None = None,
 ) -> JSONResponse:
+    content = {
+        "success": False,
+        "statusCode": status_code,
+        "message": message,
+        "errors": errors or [],
+        "data": {},
+    }
+    if field_errors is not None:
+        content["fieldErrors"] = field_errors
     return JSONResponse(
         status_code=status_code,
         headers=dict(headers) if headers else None,
-        content={
-            "success": False,
-            "statusCode": status_code,
-            "message": message,
-            "errors": errors or [],
-            "data": {},
-        },
+        content=content,
     )
 
 
@@ -35,15 +39,37 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def validation_exception_handler(
         _: Request, exc: RequestValidationError
     ) -> JSONResponse:
-        issues = [
-            {
-                "field": str(e.get("loc", ())[-1]) if e.get("loc") else "",
-                "message": str(e.get("msg")),
-            }
-            for e in exc.errors()
-        ]
+        issues: list[dict[str, str]] = []
+        field_errors: dict[str, str] = {}
+
+        for e in exc.errors():
+            loc = e.get("loc", ())
+            field = str(loc[-1]) if loc else ""
+            raw_msg = str(e.get("msg", ""))
+
+            # Clean up Pydantic error prefixes and regex pattern errors
+            if raw_msg.startswith("Value error, "):
+                clean_msg = raw_msg[len("Value error, "):].strip()
+            elif any(k in field.lower() for k in ("mobile", "contact", "phone")) and any(
+                p in raw_msg for p in ("String should match pattern", "at least", "at most", "string_too_short", "string_too_long")
+            ):
+                clean_msg = "Phone number must contain exactly 10 digits"
+            elif "Field required" in raw_msg:
+                field_human = field.replace("_", " ").strip()
+                clean_msg = f"{field_human.capitalize()} is required" if field_human else "This field is required"
+            else:
+                clean_msg = raw_msg
+
+            issues.append({"field": field, "message": clean_msg})
+            if field and field not in field_errors:
+                field_errors[field] = clean_msg
+
+        general_msg = "Validation failed"
+        if len(issues) == 1 and issues[0]["message"]:
+            general_msg = issues[0]["message"]
+
         api_logger.warning("Request validation failed (422): %s", issues)
-        return _error_response(422, "Validation failed", issues)
+        return _error_response(422, general_msg, errors=issues, field_errors=field_errors)
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
@@ -70,3 +96,11 @@ def register_exception_handlers(app: FastAPI) -> None:
         else:
             api_logger.warning("HTTPException [%d]: %s", exc.status_code, detail)
         return _error_response(exc.status_code, detail, headers=exc.headers)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        api_logger.exception("Unhandled server exception at %s %s: %s", request.method, request.url.path, exc)
+        return _error_response(
+            500,
+            "An unexpected error occurred. Please try again later.",
+        )
