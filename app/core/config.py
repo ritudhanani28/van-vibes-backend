@@ -40,7 +40,8 @@ class Settings(BaseSettings):
     # Security & Auth
     SECRET_KEY: str = "vaan_vibes_super_secret_jwt_key_2026_production_grade"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days (7 * 24 * 60 minutes)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30       # 30 days
     CAFE_ID: str = "van-vibes"
     CAFE_SECRET_KEY: str = "vv_cafe_standee_hmac_secret_2026"
 

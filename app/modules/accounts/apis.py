@@ -10,6 +10,7 @@ from app.modules.accounts.schemas import (
     ChangePasswordRequest,
     CreateChefRequest,
     LoginRequest,
+    RefreshTokenRequest,
     TokenResponse,
     UpdateChefRequest,
     UserResponse,
@@ -23,6 +24,14 @@ def login(
 ) -> TokenResponse:
     """Authenticate staff / admin credentials and return JWT bearer token."""
     return AccountService.authenticate(db, payload)
+
+
+def refresh_token(
+    payload: RefreshTokenRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    """Validate 30-day refresh token and issue a fresh 7-day access token and 30-day refresh token."""
+    return AccountService.refresh_token(db, payload)
 
 
 def get_me(

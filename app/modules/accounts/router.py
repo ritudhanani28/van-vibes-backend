@@ -8,6 +8,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # Authentication
 router.post("/login", response_model=TokenResponse)(apis.login)
+router.post("/refresh", response_model=TokenResponse)(apis.refresh_token)
+router.post("/refresh-token", response_model=TokenResponse)(apis.refresh_token)
 router.get("/me", response_model=UserResponse)(apis.get_me)
 router.patch("/profile", response_model=UserResponse)(apis.update_profile)
 router.put("/me", response_model=UserResponse)(apis.update_profile)

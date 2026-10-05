@@ -3,7 +3,7 @@ from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, create_refresh_token, decode_refresh_token, verify_password
 from app.modules.accounts import crud
 from app.modules.accounts.models import User
 from app.modules.accounts.schemas import (
@@ -11,6 +11,7 @@ from app.modules.accounts.schemas import (
     ChangePasswordRequest,
     CreateChefRequest,
     LoginRequest,
+    RefreshTokenRequest,
     TokenResponse,
     UpdateChefRequest,
     UserResponse,
@@ -61,16 +62,66 @@ class AccountService:
                 detail="User account is deactivated. Please contact administrator.",
             )
 
-        token = create_access_token(
-            data={
-                "sub": user.id,
-                "email": user.email,
-                "role": user.role,
-                "name": user.name,
-            }
-        )
+        token_data = {
+            "sub": user.id,
+            "email": user.email,
+            "role": user.role,
+            "name": user.name,
+        }
+        access_token = create_access_token(data=token_data)
+        refresh_token = create_refresh_token(data=token_data)
         return TokenResponse(
-            access_token=token,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            user=UserResponse.model_validate(user),
+        )
+
+    @staticmethod
+    def refresh_token(db: Session, payload: RefreshTokenRequest) -> TokenResponse:
+        try:
+            token_data = decode_refresh_token(payload.refresh_token)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(exc) or "Invalid or expired refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user_id = token_data.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token payload",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = crud.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is deactivated. Please contact administrator.",
+            )
+
+        new_data = {
+            "sub": user.id,
+            "email": user.email,
+            "role": user.role,
+            "name": user.name,
+        }
+        new_access_token = create_access_token(data=new_data)
+        new_refresh_token = create_refresh_token(data=new_data)
+
+        return TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
             token_type="bearer",
             user=UserResponse.model_validate(user),
         )

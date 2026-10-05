@@ -31,13 +31,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """Generate signed JWT access token."""
+    """Generate signed JWT access token valid for 7 days (or expires_delta)."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """Generate signed JWT refresh token valid for 30 days (or expires_delta)."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -49,6 +60,9 @@ def decode_access_token(token: str) -> Dict[str, Any]:
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
+        if payload.get("type") == "refresh":
+            auth_logger.warning("Rejected refresh token provided as access token")
+            raise ValueError("Invalid token type: cannot use refresh token as access token")
         return payload
     except jwt.ExpiredSignatureError:
         try:
@@ -61,9 +75,41 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except jwt.InvalidTokenError as exc:
         auth_logger.warning("Authentication failed: Invalid JWT token: %s", exc)
         raise ValueError(f"Invalid token: {exc}")
+    except ValueError:
+        raise
     except Exception as exc:
         auth_logger.warning("Malformed or unparseable JWT token format: %s", exc)
         raise ValueError("Malformed or unparseable JWT token format")
+
+
+def decode_refresh_token(token: str) -> Dict[str, Any]:
+    """Decode and validate JWT refresh token claims."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+        if payload.get("type") != "refresh":
+            auth_logger.warning("Expected refresh token but received token type: %s", payload.get("type"))
+            raise ValueError("Invalid token type: expected refresh token")
+        return payload
+    except jwt.ExpiredSignatureError:
+        try:
+            unverified = jwt.decode(token, options={"verify_signature": False})
+            sub = unverified.get("sub", "unknown")
+            auth_logger.warning("Refresh token expired for user %s", sub)
+        except Exception:
+            auth_logger.warning("Refresh token signature expired")
+        raise ValueError("Refresh token has expired")
+    except jwt.InvalidTokenError as exc:
+        auth_logger.warning("Invalid refresh token: %s", exc)
+        raise ValueError(f"Invalid refresh token: {exc}")
+    except ValueError:
+        raise
+    except Exception as exc:
+        auth_logger.warning("Malformed refresh token: %s", exc)
+        raise ValueError("Malformed or unparseable refresh token")
 
 
 def generate_table_token(table_id: str) -> str:
